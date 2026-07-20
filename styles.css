@@ -136,16 +136,15 @@ body::after {
 }
 
 .console-box--output {
-  display: block;
+  height: 4.45rem;
   min-height: 4.45rem;
   overflow: hidden;
   padding: 1.35rem 1.55rem;
-  transition: height 460ms var(--motion);
+  transition: height 520ms var(--motion);
 }
 
 .output-list {
   display: flex;
-  min-height: 0;
   flex-direction: column;
   gap: 1rem;
 }
@@ -186,9 +185,7 @@ body::after {
   text-shadow: -1px 0 rgba(255,35,74,.2), 1px 0 rgba(45,125,255,.22);
 }
 
-.output-placeholder[hidden] {
-  display: none;
-}
+.output-placeholder[hidden] { display: none; }
 
 .marker-rail {
   min-height: 0;
