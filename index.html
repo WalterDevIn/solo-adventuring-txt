@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Interfaz experimental para un RPG de texto retro neón."
+    />
+    <title>Solo Adventuring</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <main class="game-shell" aria-label="Interfaz del juego de rol de texto">
+      <section class="console-stack" aria-live="polite">
+        <div class="console-row console-row--output" id="outputRow" hidden>
+          <article class="console-box console-box--output" id="outputBox">
+            <span class="console-label">OUTPUT</span>
+            <p id="outputText"></p>
+          </article>
+
+          <aside class="marker-rail" aria-label="Marcadores de salida">
+            <div class="marker-slot" aria-hidden="true"></div>
+          </aside>
+        </div>
+
+        <div class="console-row console-row--input">
+          <form class="console-box console-box--input" id="commandForm">
+            <label class="console-label" for="commandInput">INPUT</label>
+            <div class="input-line">
+              <span class="prompt" aria-hidden="true">&gt;</span>
+              <input
+                id="commandInput"
+                name="command"
+                type="text"
+                autocomplete="off"
+                spellcheck="false"
+                aria-describedby="inputHint"
+                autofocus
+              />
+              <span class="cursor-light" aria-hidden="true"></span>
+            </div>
+            <p class="input-hint" id="inputHint">ENTER PARA ENVIAR</p>
+          </form>
+
+          <aside class="marker-rail" aria-label="Marcadores de entrada">
+            <div class="marker-slot" aria-hidden="true"></div>
+          </aside>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
