@@ -7,11 +7,12 @@ const outputPlaceholder = document.querySelector("#outputPlaceholder");
 const OUTPUT_MIN_LIFETIME = 5000;
 const ENTRY_FADE_DURATION = 420;
 const PLACEHOLDER_INTERVAL = 420;
+const MIN_OUTPUT_HEIGHT = 71;
 
 const typingQueue = [];
 let isTyping = false;
 let placeholderIndex = 0;
-let heightAnimationFrame = null;
+let resizeFrame = null;
 
 function wait(milliseconds) {
   return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
@@ -29,54 +30,36 @@ function getOutputChromeHeight() {
 }
 
 function getVisibleContentHeight() {
-  if (!outputPlaceholder.hidden) {
-    return outputPlaceholder.scrollHeight;
-  }
-
-  return outputList.scrollHeight;
+  return outputPlaceholder.hidden
+    ? outputList.scrollHeight
+    : outputPlaceholder.scrollHeight;
 }
 
-function getNaturalOutputHeight() {
+function getTargetOutputHeight() {
   return Math.max(
-    71,
+    MIN_OUTPUT_HEIGHT,
     Math.ceil(getVisibleContentHeight() + getOutputChromeHeight()),
   );
 }
 
-function setOutputHeight(targetHeight = getNaturalOutputHeight()) {
-  if (heightAnimationFrame !== null) {
-    window.cancelAnimationFrame(heightAnimationFrame);
-  }
-
-  const currentHeight = outputBox.getBoundingClientRect().height;
-  outputBox.style.height = `${currentHeight}px`;
-
-  heightAnimationFrame = window.requestAnimationFrame(() => {
-    heightAnimationFrame = null;
-    outputBox.style.height = `${targetHeight}px`;
-  });
+function syncOutputHeight() {
+  outputBox.style.height = `${getTargetOutputHeight()}px`;
 }
 
-function measureHeightWithFinalText(entry, text) {
-  const previousText = entry.textContent;
-  const wasTyping = entry.classList.contains("is-typing");
-
-  entry.classList.remove("is-typing");
-  entry.textContent = text;
-
-  const targetHeight = getNaturalOutputHeight();
-
-  entry.textContent = previousText;
-  if (wasTyping) {
-    entry.classList.add("is-typing");
+function scheduleOutputHeightSync() {
+  if (resizeFrame !== null) {
+    return;
   }
 
-  return targetHeight;
+  resizeFrame = window.requestAnimationFrame(() => {
+    resizeFrame = null;
+    syncOutputHeight();
+  });
 }
 
 function updateEmptyState() {
   outputPlaceholder.hidden = outputList.children.length !== 0;
-  setOutputHeight();
+  scheduleOutputHeightSync();
 }
 
 function getTypingDelay(character) {
@@ -85,9 +68,6 @@ function getTypingDelay(character) {
 
 async function typeEntry(entry, text) {
   entry.classList.add("is-typing");
-
-  const finalHeight = measureHeightWithFinalText(entry, text);
-  setOutputHeight(finalHeight);
 
   for (const character of text) {
     entry.textContent += character;
@@ -141,12 +121,16 @@ function addOutput(text) {
   shell.append(entry);
   outputList.append(shell);
 
-  const finalHeight = measureHeightWithFinalText(entry, text);
-  setOutputHeight(finalHeight);
-
+  scheduleOutputHeightSync();
   typingQueue.push({ shell, entry, text });
   processTypingQueue();
 }
+
+const outputResizeObserver = new ResizeObserver(() => {
+  scheduleOutputHeightSync();
+});
+
+outputResizeObserver.observe(outputList);
 
 window.setInterval(() => {
   const states = [".", "..", "..."];
@@ -168,12 +152,9 @@ commandForm.addEventListener("submit", (event) => {
   commandInput.focus();
 });
 
-window.addEventListener("resize", () => {
-  outputBox.style.height = `${getNaturalOutputHeight()}px`;
-});
-
+window.addEventListener("resize", scheduleOutputHeightSync);
 window.addEventListener("load", () => {
   updateEmptyState();
-  outputBox.style.height = `${getNaturalOutputHeight()}px`;
+  syncOutputHeight();
   commandInput.focus();
 });
