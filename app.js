@@ -6,8 +6,15 @@ const outputPlaceholder = document.querySelector("#outputPlaceholder");
 const OUTPUT_MIN_LIFETIME = 5000;
 const ENTRY_FADE_DURATION = 420;
 const PLACEHOLDER_INTERVAL = 420;
+const KEY_PRESS_AUDIO_PATH = "assets/audio/key-press.mp3";
+const KEY_PRESS_MIN_PITCH = 0.86;
+const KEY_PRESS_MAX_PITCH = 1.14;
+const KEY_PRESS_VOLUME = 0.28;
 
 const typingQueue = [];
+const keyPressSound = new Audio(KEY_PRESS_AUDIO_PATH);
+keyPressSound.preload = "auto";
+
 let isTyping = false;
 let placeholderIndex = 0;
 
@@ -21,6 +28,24 @@ function updateEmptyState() {
 
 function getTypingDelay(character) {
   return /[.,;:!?]/.test(character) ? 65 : 24;
+}
+
+function getRandomPitch() {
+  return (
+    KEY_PRESS_MIN_PITCH +
+    Math.random() * (KEY_PRESS_MAX_PITCH - KEY_PRESS_MIN_PITCH)
+  );
+}
+
+function playKeyPressSound() {
+  const sound = keyPressSound.cloneNode();
+  sound.volume = KEY_PRESS_VOLUME;
+  sound.playbackRate = getRandomPitch();
+  sound.preservesPitch = false;
+
+  sound.play().catch(() => {
+    // El navegador puede bloquear audio antes de la primera interacción.
+  });
 }
 
 function removeOldestOverflowingEntries(protectedShell = null) {
@@ -46,6 +71,7 @@ async function typeEntry(shell, entry, text) {
     }
 
     entry.textContent += character;
+    playKeyPressSound();
     removeOldestOverflowingEntries(shell);
     await wait(getTypingDelay(character));
   }
