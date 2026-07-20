@@ -17,22 +17,33 @@ function wait(milliseconds) {
   return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 }
 
-function getNaturalOutputHeight() {
+function getOutputChromeHeight() {
   const styles = window.getComputedStyle(outputBox);
-  const paddingTop = Number.parseFloat(styles.paddingTop) || 0;
-  const paddingBottom = Number.parseFloat(styles.paddingBottom) || 0;
-  const borderTop = Number.parseFloat(styles.borderTopWidth) || 0;
-  const borderBottom = Number.parseFloat(styles.borderBottomWidth) || 0;
 
-  return Math.max(
-    71,
-    Math.ceil(
-      outputBox.scrollHeight + borderTop + borderBottom,
-    ),
+  return (
+    (Number.parseFloat(styles.paddingTop) || 0) +
+    (Number.parseFloat(styles.paddingBottom) || 0) +
+    (Number.parseFloat(styles.borderTopWidth) || 0) +
+    (Number.parseFloat(styles.borderBottomWidth) || 0)
   );
 }
 
-function animateOutputHeight() {
+function getVisibleContentHeight() {
+  if (!outputPlaceholder.hidden) {
+    return outputPlaceholder.scrollHeight;
+  }
+
+  return outputList.scrollHeight;
+}
+
+function getNaturalOutputHeight() {
+  return Math.max(
+    71,
+    Math.ceil(getVisibleContentHeight() + getOutputChromeHeight()),
+  );
+}
+
+function setOutputHeight(targetHeight = getNaturalOutputHeight()) {
   if (heightAnimationFrame !== null) {
     window.cancelAnimationFrame(heightAnimationFrame);
   }
@@ -42,15 +53,30 @@ function animateOutputHeight() {
 
   heightAnimationFrame = window.requestAnimationFrame(() => {
     heightAnimationFrame = null;
-
-    const targetHeight = getNaturalOutputHeight();
     outputBox.style.height = `${targetHeight}px`;
   });
 }
 
+function measureHeightWithFinalText(entry, text) {
+  const previousText = entry.textContent;
+  const wasTyping = entry.classList.contains("is-typing");
+
+  entry.classList.remove("is-typing");
+  entry.textContent = text;
+
+  const targetHeight = getNaturalOutputHeight();
+
+  entry.textContent = previousText;
+  if (wasTyping) {
+    entry.classList.add("is-typing");
+  }
+
+  return targetHeight;
+}
+
 function updateEmptyState() {
   outputPlaceholder.hidden = outputList.children.length !== 0;
-  animateOutputHeight();
+  setOutputHeight();
 }
 
 function getTypingDelay(character) {
@@ -60,14 +86,15 @@ function getTypingDelay(character) {
 async function typeEntry(entry, text) {
   entry.classList.add("is-typing");
 
+  const finalHeight = measureHeightWithFinalText(entry, text);
+  setOutputHeight(finalHeight);
+
   for (const character of text) {
     entry.textContent += character;
-    animateOutputHeight();
     await wait(getTypingDelay(character));
   }
 
   entry.classList.remove("is-typing");
-  animateOutputHeight();
 }
 
 function scheduleEntryRemoval(shell) {
@@ -114,7 +141,9 @@ function addOutput(text) {
   shell.append(entry);
   outputList.append(shell);
 
-  animateOutputHeight();
+  const finalHeight = measureHeightWithFinalText(entry, text);
+  setOutputHeight(finalHeight);
+
   typingQueue.push({ shell, entry, text });
   processTypingQueue();
 }
@@ -139,9 +168,12 @@ commandForm.addEventListener("submit", (event) => {
   commandInput.focus();
 });
 
-window.addEventListener("resize", animateOutputHeight);
+window.addEventListener("resize", () => {
+  outputBox.style.height = `${getNaturalOutputHeight()}px`;
+});
+
 window.addEventListener("load", () => {
   updateEmptyState();
-  animateOutputHeight();
+  outputBox.style.height = `${getNaturalOutputHeight()}px`;
   commandInput.focus();
 });
