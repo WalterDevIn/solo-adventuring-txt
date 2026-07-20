@@ -1,64 +1,118 @@
 const commandForm = document.querySelector("#commandForm");
 const commandInput = document.querySelector("#commandInput");
-const outputRow = document.querySelector("#outputRow");
-const outputText = document.querySelector("#outputText");
+const outputBox = document.querySelector("#outputBox");
+const outputList = document.querySelector("#outputList");
 
-let typingTimer = null;
-let revealToken = 0;
+const OUTPUT_MIN_LIFETIME = 5000;
+const BOX_REVEAL_DURATION = 480;
+const ENTRY_REMOVE_DURATION = 360;
+const BOX_COLLAPSE_DURATION = 520;
 
-function typeText(text, token) {
-  clearTimeout(typingTimer);
-  outputText.textContent = "";
-  outputText.classList.add("is-typing");
+const typingQueue = [];
+let isTyping = false;
+let collapseToken = 0;
 
-  let index = 0;
+function wait(milliseconds) {
+  return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+}
 
-  function writeNextCharacter() {
-    if (token !== revealToken) {
-      return;
-    }
+async function revealOutputBox() {
+  collapseToken += 1;
+  outputBox.classList.remove("is-collapsing");
 
-    outputText.textContent += text[index];
-    index += 1;
-
-    if (index < text.length) {
-      const character = text[index - 1];
-      const delay = /[.,;:!?]/.test(character) ? 65 : 24;
-      typingTimer = window.setTimeout(writeNextCharacter, delay);
-      return;
-    }
-
-    outputText.classList.remove("is-typing");
+  if (!outputBox.hidden) {
+    return;
   }
 
-  if (text.length > 0) {
-    typingTimer = window.setTimeout(writeNextCharacter, 110);
+  outputBox.hidden = false;
+  outputBox.classList.remove("is-entering");
+  void outputBox.offsetWidth;
+  outputBox.classList.add("is-entering");
+
+  await wait(BOX_REVEAL_DURATION);
+  outputBox.classList.remove("is-entering");
+}
+
+function getTypingDelay(character) {
+  return /[.,;:!?]/.test(character) ? 65 : 24;
+}
+
+async function typeEntry(entry, text) {
+  entry.classList.add("is-typing");
+
+  for (const character of text) {
+    entry.textContent += character;
+    await wait(getTypingDelay(character));
+  }
+
+  entry.classList.remove("is-typing");
+}
+
+function scheduleEntryRemoval(entry) {
+  window.setTimeout(() => removeEntry(entry), OUTPUT_MIN_LIFETIME);
+}
+
+async function removeEntry(entry) {
+  if (!entry.isConnected || entry.classList.contains("is-leaving")) {
+    return;
+  }
+
+  entry.classList.add("is-leaving");
+  await wait(ENTRY_REMOVE_DURATION);
+  entry.remove();
+
+  if (outputList.children.length === 0 && typingQueue.length === 0 && !isTyping) {
+    collapseOutputBox();
   }
 }
 
-function showOutput(text) {
-  revealToken += 1;
-  const token = revealToken;
+async function collapseOutputBox() {
+  const token = ++collapseToken;
 
-  clearTimeout(typingTimer);
-  outputText.textContent = "";
-  outputText.classList.remove("is-typing");
-  outputRow.hidden = false;
+  if (outputBox.hidden || outputList.children.length > 0) {
+    return;
+  }
 
-  outputRow.classList.remove("is-entering");
-  void outputRow.offsetWidth;
-  outputRow.classList.add("is-entering");
+  outputBox.classList.remove("is-entering");
+  outputBox.classList.add("is-collapsing");
+  await wait(BOX_COLLAPSE_DURATION);
 
-  const handleRevealEnd = (event) => {
-    if (event.target !== outputRow || token !== revealToken) {
-      return;
-    }
+  if (token !== collapseToken || outputList.children.length > 0) {
+    outputBox.classList.remove("is-collapsing");
+    return;
+  }
 
-    outputRow.removeEventListener("animationend", handleRevealEnd);
-    typeText(text, token);
-  };
+  outputBox.hidden = true;
+  outputBox.classList.remove("is-collapsing");
+}
 
-  outputRow.addEventListener("animationend", handleRevealEnd);
+async function processTypingQueue() {
+  if (isTyping) {
+    return;
+  }
+
+  isTyping = true;
+
+  while (typingQueue.length > 0) {
+    const { entry, text } = typingQueue.shift();
+    await revealOutputBox();
+    await typeEntry(entry, text);
+    scheduleEntryRemoval(entry);
+  }
+
+  isTyping = false;
+}
+
+function addOutput(text) {
+  collapseToken += 1;
+  outputBox.classList.remove("is-collapsing");
+
+  const entry = document.createElement("p");
+  entry.className = "output-entry";
+  outputList.append(entry);
+
+  typingQueue.push({ entry, text });
+  processTypingQueue();
 }
 
 commandForm.addEventListener("submit", (event) => {
@@ -70,7 +124,7 @@ commandForm.addEventListener("submit", (event) => {
     return;
   }
 
-  showOutput(command);
+  addOutput(command);
   commandInput.value = "";
   commandInput.focus();
 });
