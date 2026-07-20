@@ -5,16 +5,15 @@ const outputList = document.querySelector("#outputList");
 
 const OUTPUT_MIN_LIFETIME = 5000;
 const LINE_FADE_DURATION = 260;
-const HEIGHT_DURATION = 440;
+const HEIGHT_DURATION = 460;
 const ENTRY_REMOVE_DURATION = 440;
 const LINE_EXIT_DURATION = 240;
-const OUTPUT_VERTICAL_CHROME = 45;
 
 const typingQueue = [];
 let isTyping = false;
 let isRevealing = false;
 let collapseToken = 0;
-let layoutFrame = null;
+let heightFrame = null;
 
 function wait(milliseconds) {
   return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
@@ -24,47 +23,39 @@ function nextFrame() {
   return new Promise((resolve) => window.requestAnimationFrame(resolve));
 }
 
-function measureEntry(shell) {
-  const entry = shell.firstElementChild;
-  return entry ? Math.ceil(entry.scrollHeight) : 0;
+function getTargetOutputHeight() {
+  const styles = window.getComputedStyle(outputBox);
+  const paddingTop = Number.parseFloat(styles.paddingTop) || 0;
+  const paddingBottom = Number.parseFloat(styles.paddingBottom) || 0;
+  const borderTop = Number.parseFloat(styles.borderTopWidth) || 0;
+  const borderBottom = Number.parseFloat(styles.borderBottomWidth) || 0;
+
+  return Math.ceil(
+    outputList.scrollHeight + paddingTop + paddingBottom + borderTop + borderBottom,
+  );
 }
 
-function scheduleLayoutSync() {
-  if (layoutFrame !== null) {
+function syncOutputHeight() {
+  if (outputBox.hidden || !outputBox.classList.contains("is-open")) {
     return;
   }
 
-  layoutFrame = window.requestAnimationFrame(() => {
-    layoutFrame = null;
-    syncLayout();
+  outputBox.style.height = `${Math.max(1, getTargetOutputHeight())}px`;
+}
+
+function scheduleOutputHeightSync() {
+  if (heightFrame !== null) {
+    return;
+  }
+
+  heightFrame = window.requestAnimationFrame(() => {
+    heightFrame = null;
+    syncOutputHeight();
   });
 }
 
-function syncLayout() {
-  const shells = [...outputList.children];
-  let totalHeight = 0;
-
-  for (const shell of shells) {
-    if (!shell.classList.contains("is-leaving")) {
-      shell.style.height = `${measureEntry(shell)}px`;
-    }
-
-    totalHeight += shell.getBoundingClientRect().height;
-  }
-
-  if (shells.length > 1) {
-    totalHeight += (shells.length - 1) * 16;
-  }
-
-  outputList.style.height = `${Math.ceil(totalHeight)}px`;
-
-  if (!outputBox.hidden && outputBox.classList.contains("is-open")) {
-    outputBox.style.height = `${Math.max(1, Math.ceil(totalHeight + OUTPUT_VERTICAL_CHROME))}px`;
-  }
-}
-
 const outputResizeObserver = new ResizeObserver(() => {
-  scheduleLayoutSync();
+  scheduleOutputHeightSync();
 });
 
 outputResizeObserver.observe(outputList);
@@ -79,21 +70,21 @@ async function revealOutputBox() {
     }
 
     outputBox.classList.add("is-line-visible", "is-open");
-    scheduleLayoutSync();
+    scheduleOutputHeightSync();
     return;
   }
 
   isRevealing = true;
   outputBox.hidden = false;
   outputBox.style.height = "1px";
-  outputList.style.height = "0px";
 
   await nextFrame();
   outputBox.classList.add("is-line-visible");
   await wait(LINE_FADE_DURATION);
 
   outputBox.classList.add("is-open");
-  scheduleLayoutSync();
+  await nextFrame();
+  syncOutputHeight();
   await wait(HEIGHT_DURATION);
 
   isRevealing = false;
@@ -108,12 +99,12 @@ async function typeEntry(entry, text) {
 
   for (const character of text) {
     entry.textContent += character;
-    scheduleLayoutSync();
+    scheduleOutputHeightSync();
     await wait(getTypingDelay(character));
   }
 
   entry.classList.remove("is-typing");
-  scheduleLayoutSync();
+  scheduleOutputHeightSync();
 }
 
 function scheduleEntryRemoval(shell) {
@@ -125,14 +116,13 @@ async function removeEntry(shell) {
     return;
   }
 
-  shell.style.height = `${measureEntry(shell)}px`;
-  await nextFrame();
   shell.classList.add("is-leaving");
-  scheduleLayoutSync();
-
+  scheduleOutputHeightSync();
   await wait(ENTRY_REMOVE_DURATION);
+
+  outputResizeObserver.unobserve(shell);
   shell.remove();
-  scheduleLayoutSync();
+  scheduleOutputHeightSync();
 
   if (outputList.children.length === 0 && typingQueue.length === 0 && !isTyping) {
     collapseOutputBox();
@@ -146,17 +136,15 @@ async function collapseOutputBox() {
     return;
   }
 
-  outputList.style.height = "0px";
   outputBox.classList.remove("is-open");
   outputBox.classList.add("is-collapsing");
   outputBox.style.height = "1px";
-
   await wait(HEIGHT_DURATION);
 
   if (token !== collapseToken || outputList.children.length > 0) {
     outputBox.classList.remove("is-collapsing");
     outputBox.classList.add("is-line-visible", "is-open");
-    scheduleLayoutSync();
+    scheduleOutputHeightSync();
     return;
   }
 
@@ -166,13 +154,12 @@ async function collapseOutputBox() {
   if (token !== collapseToken || outputList.children.length > 0) {
     outputBox.classList.remove("is-collapsing", "is-line-leaving");
     outputBox.classList.add("is-line-visible", "is-open");
-    scheduleLayoutSync();
+    scheduleOutputHeightSync();
     return;
   }
 
   outputBox.hidden = true;
   outputBox.style.height = "1px";
-  outputList.style.height = "0px";
   outputBox.classList.remove("is-collapsing", "is-line-leaving", "is-line-visible");
 }
 
@@ -205,9 +192,8 @@ function addOutput(text) {
 
   shell.append(entry);
   outputList.append(shell);
-  outputResizeObserver.observe(entry);
+  outputResizeObserver.observe(shell);
 
-  scheduleLayoutSync();
   typingQueue.push({ shell, entry, text });
   processTypingQueue();
 }
@@ -226,7 +212,7 @@ commandForm.addEventListener("submit", (event) => {
   commandInput.focus();
 });
 
-window.addEventListener("resize", scheduleLayoutSync);
+window.addEventListener("resize", scheduleOutputHeightSync);
 window.addEventListener("load", () => {
   commandInput.focus();
 });
