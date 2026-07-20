@@ -23,11 +23,33 @@ function nextFrame() {
   return new Promise((resolve) => window.requestAnimationFrame(resolve));
 }
 
+function syncEntryHeight(entry) {
+  if (!entry.isConnected || entry.classList.contains("is-leaving")) {
+    return;
+  }
+
+  entry.style.height = "auto";
+  const targetHeight = entry.scrollHeight;
+  entry.style.height = `${targetHeight}px`;
+}
+
+function syncOutputListHeight() {
+  for (const entry of outputList.children) {
+    syncEntryHeight(entry);
+  }
+
+  outputList.style.height = "auto";
+  const targetHeight = outputList.scrollHeight;
+  outputList.style.height = `${targetHeight}px`;
+}
+
 function getOpenOutputHeight() {
   return Math.max(1, outputList.scrollHeight + OUTPUT_VERTICAL_CHROME);
 }
 
 function syncOutputHeight() {
+  syncOutputListHeight();
+
   if (outputBox.hidden || !outputBox.classList.contains("is-open")) {
     return;
   }
@@ -58,6 +80,7 @@ async function revealOutputBox() {
   isRevealing = true;
   outputBox.hidden = false;
   outputBox.style.height = "1px";
+  outputList.style.height = "0px";
   await nextFrame();
 
   outputBox.classList.add("is-line-visible");
@@ -80,11 +103,15 @@ async function typeEntry(entry, text) {
 
   for (const character of text) {
     entry.textContent += character;
+    syncEntryHeight(entry);
+    syncOutputListHeight();
     syncOutputHeight();
     await wait(getTypingDelay(character));
   }
 
   entry.classList.remove("is-typing");
+  syncEntryHeight(entry);
+  syncOutputListHeight();
   syncOutputHeight();
 }
 
@@ -97,13 +124,18 @@ async function removeEntry(entry) {
     return;
   }
 
-  entry.style.maxHeight = `${entry.scrollHeight}px`;
+  syncEntryHeight(entry);
+  syncOutputListHeight();
   await nextFrame();
+
   entry.classList.add("is-leaving");
+  entry.style.height = "0px";
+  syncOutputListHeight();
   syncOutputHeight();
 
   await wait(ENTRY_REMOVE_DURATION);
   entry.remove();
+  syncOutputListHeight();
   syncOutputHeight();
 
   if (outputList.children.length === 0 && typingQueue.length === 0 && !isTyping) {
@@ -118,6 +150,7 @@ async function collapseOutputBox() {
     return;
   }
 
+  outputList.style.height = "0px";
   outputBox.classList.remove("is-open");
   outputBox.classList.add("is-collapsing");
   outputBox.style.height = "1px";
@@ -142,6 +175,7 @@ async function collapseOutputBox() {
 
   outputBox.hidden = true;
   outputBox.style.height = "1px";
+  outputList.style.height = "0px";
   outputBox.classList.remove("is-collapsing", "is-line-leaving", "is-line-visible");
 }
 
@@ -168,7 +202,10 @@ function addOutput(text) {
 
   const entry = document.createElement("p");
   entry.className = "output-entry";
+  entry.style.height = "0px";
   outputList.append(entry);
+
+  syncOutputListHeight();
   syncOutputHeight();
 
   typingQueue.push({ entry, text });
