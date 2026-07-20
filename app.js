@@ -1,3 +1,6 @@
+import { parseIntent } from "./src/intentParser.js";
+import { createGameEngine } from "./src/gameEngine.js";
+
 const commandForm = document.querySelector("#commandForm");
 const commandInput = document.querySelector("#commandInput");
 const outputList = document.querySelector("#outputList");
@@ -13,6 +16,7 @@ const KEY_PRESS_VOLUME = 0.28;
 
 const typingQueue = [];
 const keyPressSound = new Audio(KEY_PRESS_AUDIO_PATH);
+const gameEngine = createGameEngine("CITY");
 keyPressSound.preload = "auto";
 
 let isTyping = false;
@@ -44,7 +48,7 @@ function playKeyPressSound() {
   sound.preservesPitch = false;
 
   sound.play().catch(() => {
-    // El navegador puede bloquear audio antes de la primera interacción.
+    // Browsers may block audio until the first user interaction.
   });
 }
 
@@ -136,6 +140,16 @@ function addOutput(text) {
   processTypingQueue();
 }
 
+function processCommand(command) {
+  const intent = parseIntent(command);
+  const result = gameEngine.processIntent(intent);
+
+  console.debug("Command intent", intent);
+  console.debug("Game result", result);
+
+  addOutput(result.message);
+}
+
 window.setInterval(() => {
   const states = [".", "..", "..."];
   placeholderIndex = (placeholderIndex + 1) % states.length;
@@ -151,7 +165,7 @@ commandForm.addEventListener("submit", (event) => {
     return;
   }
 
-  addOutput(command);
+  processCommand(command);
   commandInput.value = "";
   commandInput.focus();
 });
