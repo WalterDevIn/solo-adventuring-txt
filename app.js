@@ -4,12 +4,14 @@ const outputBox = document.querySelector("#outputBox");
 const outputList = document.querySelector("#outputList");
 
 const OUTPUT_MIN_LIFETIME = 5000;
-const BOX_REVEAL_DURATION = 480;
-const ENTRY_REMOVE_DURATION = 360;
-const BOX_COLLAPSE_DURATION = 520;
+const LINE_FADE_DURATION = 260;
+const BOX_EXPAND_DURATION = 520;
+const ENTRY_REMOVE_DURATION = 420;
+const BOX_COLLAPSE_DURATION = 560;
 
 const typingQueue = [];
 let isTyping = false;
+let isRevealing = false;
 let collapseToken = 0;
 
 function wait(milliseconds) {
@@ -20,17 +22,23 @@ async function revealOutputBox() {
   collapseToken += 1;
   outputBox.classList.remove("is-collapsing");
 
-  if (!outputBox.hidden) {
+  if (!outputBox.hidden || isRevealing) {
+    while (isRevealing) {
+      await wait(16);
+    }
     return;
   }
 
+  isRevealing = true;
   outputBox.hidden = false;
-  outputBox.classList.remove("is-entering");
-  void outputBox.offsetWidth;
-  outputBox.classList.add("is-entering");
+  outputBox.classList.add("is-line-entering");
+  await wait(LINE_FADE_DURATION);
 
-  await wait(BOX_REVEAL_DURATION);
-  outputBox.classList.remove("is-entering");
+  outputBox.classList.remove("is-line-entering");
+  outputBox.classList.add("is-expanding");
+  await wait(BOX_EXPAND_DURATION);
+  outputBox.classList.remove("is-expanding");
+  isRevealing = false;
 }
 
 function getTypingDelay(character) {
@@ -69,11 +77,11 @@ async function removeEntry(entry) {
 async function collapseOutputBox() {
   const token = ++collapseToken;
 
-  if (outputBox.hidden || outputList.children.length > 0) {
+  if (outputBox.hidden || outputList.children.length > 0 || isRevealing) {
     return;
   }
 
-  outputBox.classList.remove("is-entering");
+  outputBox.classList.remove("is-line-entering", "is-expanding");
   outputBox.classList.add("is-collapsing");
   await wait(BOX_COLLAPSE_DURATION);
 
