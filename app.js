@@ -3,14 +3,62 @@ const commandInput = document.querySelector("#commandInput");
 const outputRow = document.querySelector("#outputRow");
 const outputText = document.querySelector("#outputText");
 
+let typingTimer = null;
+let revealToken = 0;
+
+function typeText(text, token) {
+  clearTimeout(typingTimer);
+  outputText.textContent = "";
+  outputText.classList.add("is-typing");
+
+  let index = 0;
+
+  function writeNextCharacter() {
+    if (token !== revealToken) {
+      return;
+    }
+
+    outputText.textContent += text[index];
+    index += 1;
+
+    if (index < text.length) {
+      const character = text[index - 1];
+      const delay = /[.,;:!?]/.test(character) ? 65 : 24;
+      typingTimer = window.setTimeout(writeNextCharacter, delay);
+      return;
+    }
+
+    outputText.classList.remove("is-typing");
+  }
+
+  if (text.length > 0) {
+    typingTimer = window.setTimeout(writeNextCharacter, 110);
+  }
+}
+
 function showOutput(text) {
-  outputText.textContent = text;
+  revealToken += 1;
+  const token = revealToken;
+
+  clearTimeout(typingTimer);
+  outputText.textContent = "";
+  outputText.classList.remove("is-typing");
   outputRow.hidden = false;
 
-  // Reinicia la animación incluso cuando ya existe una salida visible.
   outputRow.classList.remove("is-entering");
   void outputRow.offsetWidth;
   outputRow.classList.add("is-entering");
+
+  const handleRevealEnd = (event) => {
+    if (event.target !== outputRow || token !== revealToken) {
+      return;
+    }
+
+    outputRow.removeEventListener("animationend", handleRevealEnd);
+    typeText(text, token);
+  };
+
+  outputRow.addEventListener("animationend", handleRevealEnd);
 }
 
 commandForm.addEventListener("submit", (event) => {
@@ -22,7 +70,6 @@ commandForm.addEventListener("submit", (event) => {
     return;
   }
 
-  // Respuesta provisional: permite diseñar la interfaz antes del motor de juego.
   showOutput(command);
   commandInput.value = "";
   commandInput.focus();
