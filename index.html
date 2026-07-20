@@ -13,51 +13,44 @@
   </head>
   <body>
     <main class="game-shell" aria-label="Interfaz del juego de rol de texto">
-      <section class="console-stack" aria-live="polite">
-        <div class="console-row console-row--output" id="outputRow" hidden>
-          <article class="console-box console-box--output" id="outputBox">
+      <section class="console-layout">
+        <div class="console-stack">
+          <section
+            class="console-box console-box--output"
+            id="outputBox"
+            aria-live="polite"
+            hidden
+          >
             <span class="console-label">OUTPUT</span>
-            <p id="outputText"></p>
-          </article>
+            <div class="output-list" id="outputList"></div>
+          </section>
 
-          <aside class="marker-rail" aria-label="Marcadores de salida">
-            <div class="marker-stack" aria-hidden="true">
-              <span>◇</span>
-              <span>+</span>
-              <span>::</span>
-              <span>×</span>
-              <span>⌁</span>
-            </div>
-          </aside>
-        </div>
-
-        <div class="console-row console-row--input">
           <form class="console-box console-box--input" id="commandForm">
             <label class="console-label" for="commandInput">INPUT</label>
-            <div class="input-line">
-              <span class="prompt" aria-hidden="true">&gt;</span>
-              <input
-                id="commandInput"
-                name="command"
-                type="text"
-                autocomplete="off"
-                spellcheck="false"
-                autofocus
-              />
-              <span class="cursor-light" aria-hidden="true"></span>
-            </div>
+            <input
+              id="commandInput"
+              name="command"
+              type="text"
+              autocomplete="off"
+              spellcheck="false"
+              autofocus
+            />
           </form>
-
-          <aside class="marker-rail" aria-label="Marcadores de entrada">
-            <div class="marker-stack" aria-hidden="true">
-              <span>&gt;</span>
-              <span>#</span>
-              <span>[ ]</span>
-              <span>!</span>
-              <span>·</span>
-            </div>
-          </aside>
         </div>
+
+        <aside class="marker-rail" aria-label="Marcadores">
+          <div class="marker-stack" aria-hidden="true">
+            <span>◇</span>
+            <span>+</span>
+            <span>::</span>
+            <span>×</span>
+            <span>⌁</span>
+            <span>#</span>
+            <span>[ ]</span>
+            <span>!</span>
+            <span>·</span>
+          </div>
+        </aside>
       </section>
     </main>
   </body>
