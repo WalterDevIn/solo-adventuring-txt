@@ -94,18 +94,6 @@ body::before {
   border-bottom: 2px solid var(--white);
 }
 
-.console-label {
-  position: absolute;
-  top: -.55rem;
-  left: 1rem;
-  padding: 0 .45rem;
-  background: #020202;
-  color: var(--white);
-  font-size: .68rem;
-  letter-spacing: .18em;
-  text-shadow: -1px 0 var(--red-fringe), 1px 0 var(--blue-fringe);
-}
-
 .console-box--input {
   display: flex;
   min-height: 7.25rem;
@@ -129,24 +117,48 @@ body::before {
 
 .console-box--output {
   display: block;
+  height: 1px;
   min-height: 0;
   overflow: hidden;
-  padding: 1.65rem 1.5rem 1.4rem;
+  padding: 0 1.5rem;
+  opacity: 0;
+  transform: scaleX(.72);
   transform-origin: center bottom;
+  filter: blur(3px);
+  transition:
+    height 420ms cubic-bezier(.2,.8,.2,1),
+    padding-top 420ms cubic-bezier(.2,.8,.2,1),
+    padding-bottom 420ms cubic-bezier(.2,.8,.2,1),
+    opacity 240ms ease,
+    transform 240ms ease,
+    filter 240ms ease;
 }
 
 .console-box--output[hidden] { display: none; }
 
-.console-box--output.is-line-entering {
-  animation: output-line-in 260ms ease-out both;
+.console-box--output.is-line-visible {
+  opacity: 1;
+  transform: scaleX(1);
+  filter: blur(0);
 }
 
-.console-box--output.is-expanding {
-  animation: output-expand 520ms cubic-bezier(.2,.8,.2,1) both;
+.console-box--output.is-open {
+  padding-top: 1.65rem;
+  padding-bottom: 1.4rem;
+  opacity: 1;
+  transform: scaleX(1);
+  filter: blur(0);
 }
 
 .console-box--output.is-collapsing {
-  animation: output-collapse 560ms cubic-bezier(.55,0,.2,1) both;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.console-box--output.is-line-leaving {
+  opacity: 0;
+  transform: scaleX(.72);
+  filter: blur(2px);
 }
 
 .output-list {
@@ -164,6 +176,12 @@ body::before {
   line-height: 1.65;
   letter-spacing: .025em;
   text-shadow: -1px 0 rgba(255,35,74,.3), 1px 0 rgba(40,125,255,.32);
+  transition:
+    opacity 300ms ease,
+    transform 300ms ease,
+    filter 300ms ease,
+    max-height 420ms cubic-bezier(.4,0,.2,1),
+    margin 420ms cubic-bezier(.4,0,.2,1);
 }
 
 .output-entry.is-typing::after {
@@ -174,8 +192,11 @@ body::before {
 }
 
 .output-entry.is-leaving {
-  overflow: hidden;
-  animation: remove-output-entry 420ms cubic-bezier(.4,0,.2,1) both;
+  max-height: 0 !important;
+  margin: 0;
+  opacity: 0;
+  transform: translateY(-.35rem);
+  filter: blur(2px);
 }
 
 .marker-rail {
@@ -199,88 +220,8 @@ body::before {
   text-shadow: -1px 0 rgba(255,35,74,.28), 1px 0 rgba(40,125,255,.3), 0 0 6px rgba(255,255,255,.12);
 }
 
-.marker-stack span {
-  flex: 0 0 auto;
-}
-
+.marker-stack span { flex: 0 0 auto; }
 .marker-stack span:nth-child(even) { opacity: .45; }
-
-@keyframes output-line-in {
-  from {
-    opacity: 0;
-    max-height: 1px;
-    padding-top: 0;
-    padding-bottom: 0;
-    transform: scaleX(.72);
-    filter: blur(3px);
-  }
-  to {
-    opacity: 1;
-    max-height: 1px;
-    padding-top: 0;
-    padding-bottom: 0;
-    transform: scaleX(1);
-    filter: blur(0);
-  }
-}
-
-@keyframes output-expand {
-  from {
-    max-height: 1px;
-    padding-top: 0;
-    padding-bottom: 0;
-    opacity: 1;
-  }
-  to {
-    max-height: 40rem;
-    padding-top: 1.65rem;
-    padding-bottom: 1.4rem;
-    opacity: 1;
-  }
-}
-
-@keyframes output-collapse {
-  0% {
-    max-height: 40rem;
-    padding-top: 1.65rem;
-    padding-bottom: 1.4rem;
-    opacity: 1;
-  }
-  78% {
-    max-height: 1px;
-    padding-top: 0;
-    padding-bottom: 0;
-    opacity: .9;
-  }
-  100% {
-    max-height: 1px;
-    padding-top: 0;
-    padding-bottom: 0;
-    opacity: 0;
-    transform: scaleX(.72);
-    filter: blur(2px);
-  }
-}
-
-@keyframes remove-output-entry {
-  0% {
-    opacity: 1;
-    max-height: 20rem;
-    transform: translateY(0);
-    filter: blur(0);
-  }
-  65% {
-    opacity: 0;
-    transform: translateY(-.35rem);
-    filter: blur(2px);
-  }
-  100% {
-    opacity: 0;
-    max-height: 0;
-    transform: translateY(-.35rem);
-    filter: blur(2px);
-  }
-}
 
 @keyframes cursor-pulse {
   0%,45% { opacity: .7; }
@@ -305,6 +246,7 @@ body::before {
 @media (prefers-reduced-motion: reduce) {
   *,*::before,*::after {
     scroll-behavior: auto !important;
+    transition-duration: 1ms !important;
     animation-duration: 1ms !important;
     animation-iteration-count: 1 !important;
   }
