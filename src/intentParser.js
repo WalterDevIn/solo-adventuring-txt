@@ -1,3 +1,27 @@
+const NPC_PATTERNS = [
+  {
+    npc: "GUIDE",
+    patterns: [
+      /\b(?:visit|see|meet|find|talk\s+to|speak\s+to|go\s+to|go\s+see)\s+(?:the\s+)?guide\b/,
+      /\b(?:guide)\b/,
+    ],
+  },
+  {
+    npc: "NURSE",
+    patterns: [
+      /\b(?:visit|see|meet|find|talk\s+to|speak\s+to|go\s+to|go\s+see)\s+(?:the\s+)?nurse\b/,
+      /\b(?:nurse|healer)\b/,
+    ],
+  },
+  {
+    npc: "ZOOLOGIST",
+    patterns: [
+      /\b(?:visit|see|meet|find|talk\s+to|speak\s+to|go\s+to|go\s+see)\s+(?:the\s+)?zoologist\b/,
+      /\b(?:zoologist)\b/,
+    ],
+  },
+];
+
 const DESTINATION_PATTERNS = [
   {
     destination: "DUNGEON",
@@ -37,6 +61,17 @@ export function parseIntent(command) {
       reason: "EMPTY_COMMAND",
       raw: command,
     };
+  }
+
+  for (const npcRule of NPC_PATTERNS) {
+    if (npcRule.patterns.some((pattern) => pattern.test(normalizedCommand))) {
+      return {
+        type: "VISIT_NPC",
+        npc: npcRule.npc,
+        raw: command,
+        normalized: normalizedCommand,
+      };
+    }
   }
 
   for (const destinationRule of DESTINATION_PATTERNS) {
