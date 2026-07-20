@@ -21,18 +21,17 @@
             aria-live="polite"
             hidden
           >
-            <span class="console-label">OUTPUT</span>
             <div class="output-list" id="outputList"></div>
           </section>
 
           <form class="console-box console-box--input" id="commandForm">
-            <label class="console-label" for="commandInput">INPUT</label>
             <input
               id="commandInput"
               name="command"
               type="text"
               autocomplete="off"
               spellcheck="false"
+              aria-label="Comando"
               autofocus
             />
           </form>
