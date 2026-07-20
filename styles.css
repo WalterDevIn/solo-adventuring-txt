@@ -5,7 +5,6 @@
   color: #f4f4f4;
   --surface: rgba(4, 4, 6, 0.9);
   --white: #f6f7fb;
-  --muted: #8d8f99;
   --red-fringe: rgba(255, 35, 74, 0.48);
   --blue-fringe: rgba(40, 125, 255, 0.5);
   --border: rgba(246, 247, 251, 0.74);
@@ -54,32 +53,23 @@ body::before {
   padding: clamp(1.25rem, 4vw, 4rem);
 }
 
-.console-stack {
-  display: flex;
-  width: min(900px, 92vw);
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.console-row {
+.console-layout {
   display: grid;
+  width: min(900px, 92vw);
   grid-template-columns: minmax(0, 1fr) 3rem;
   gap: 0.75rem;
   align-items: stretch;
 }
 
-.console-row--output[hidden] {
-  display: none;
-}
-
-.console-row--output.is-entering {
-  display: grid;
-  animation: reveal-output 480ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+.console-stack {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 .console-box {
   position: relative;
-  min-height: 7.25rem;
   border: 1px solid var(--border);
   background: var(--surface);
   box-shadow:
@@ -128,25 +118,9 @@ body::before {
 
 .console-box--input {
   display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding: 1.3rem 1.5rem;
-}
-
-.input-line {
-  display: flex;
+  min-height: 7.25rem;
   align-items: center;
-  gap: 0.75rem;
-}
-
-.prompt {
-  flex: 0 0 auto;
-  font-size: 1.35rem;
-  line-height: 1;
-  text-shadow:
-    -1px 0 var(--red-fringe),
-    1px 0 var(--blue-fringe),
-    0 0 9px rgba(255, 255, 255, 0.35);
+  padding: 1.3rem 1.5rem;
 }
 
 #commandInput {
@@ -166,22 +140,32 @@ body::before {
     0 0 7px rgba(255, 255, 255, 0.24);
 }
 
-.cursor-light {
-  width: 1px;
-  height: 1.45rem;
-  opacity: 0.65;
-  background: var(--white);
-  box-shadow: 0 0 7px var(--white);
-  animation: cursor-pulse 1.15s steps(2, end) infinite;
-}
-
 .console-box--output {
   display: block;
   min-height: 0;
   padding: 1.65rem 1.5rem 1.4rem;
+  transform-origin: center bottom;
 }
 
-#outputText {
+.console-box--output[hidden] {
+  display: none;
+}
+
+.console-box--output.is-entering {
+  animation: reveal-output 480ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.console-box--output.is-collapsing {
+  overflow: hidden;
+  animation: collapse-output 520ms cubic-bezier(0.55, 0, 0.2, 1) both;
+}
+
+.output-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.output-entry {
   margin: 0;
   min-height: 1.65em;
   white-space: pre-wrap;
@@ -194,11 +178,21 @@ body::before {
     1px 0 rgba(40, 125, 255, 0.32);
 }
 
-#outputText.is-typing::after {
+.output-entry + .output-entry {
+  margin-top: 1.15rem;
+  padding-top: 1.15rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.output-entry.is-typing::after {
   content: "█";
   margin-left: 0.1em;
   opacity: 0.75;
   animation: cursor-pulse 700ms steps(2, end) infinite;
+}
+
+.output-entry.is-leaving {
+  animation: remove-output-entry 360ms ease both;
 }
 
 .marker-rail {
@@ -231,7 +225,7 @@ body::before {
 @keyframes reveal-output {
   from {
     opacity: 0;
-    transform: translateY(1.35rem) scaleY(0.86);
+    transform: translateY(1.35rem) scaleY(0.12);
     filter: blur(4px);
   }
 
@@ -239,6 +233,38 @@ body::before {
     opacity: 1;
     transform: translateY(0) scaleY(1);
     filter: blur(0);
+  }
+}
+
+@keyframes collapse-output {
+  0% {
+    opacity: 1;
+    max-height: 30rem;
+    transform: scaleY(1);
+  }
+
+  70% {
+    opacity: 0.7;
+    max-height: 1px;
+    padding-top: 0;
+    padding-bottom: 0;
+    transform: scaleY(0.03);
+  }
+
+  100% {
+    opacity: 0;
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    transform: scaleY(0);
+  }
+}
+
+@keyframes remove-output-entry {
+  to {
+    opacity: 0;
+    transform: translateY(-0.45rem);
+    filter: blur(2px);
   }
 }
 
@@ -259,11 +285,8 @@ body::before {
     padding: 1rem;
   }
 
-  .console-stack {
+  .console-layout {
     width: 100%;
-  }
-
-  .console-row {
     grid-template-columns: minmax(0, 1fr) 1.8rem;
     gap: 0.4rem;
   }
