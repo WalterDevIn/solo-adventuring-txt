@@ -9,7 +9,6 @@
   --border-soft: rgba(245, 246, 250, 0.16);
   --red-fringe: rgba(255, 35, 74, 0.36);
   --blue-fringe: rgba(45, 125, 255, 0.38);
-  --motion: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 * { box-sizing: border-box; }
@@ -135,21 +134,21 @@ body::after {
 }
 
 .console-box--output {
-  height: 4.45rem;
-  min-height: 4.45rem;
+  height: 360px;
   overflow: hidden;
   padding: 1.35rem 1.55rem;
-  transition: height 560ms var(--motion);
-  will-change: height;
 }
 
 .output-list {
   display: flex;
+  max-height: 100%;
+  overflow: hidden;
   flex-direction: column;
   gap: 1rem;
 }
 
 .output-entry-shell {
+  flex: 0 0 auto;
   opacity: 1;
   transition: opacity 420ms ease;
 }
