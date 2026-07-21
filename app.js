@@ -8,8 +8,6 @@ const commandHighlight = document.querySelector("#commandHighlight");
 const outputList = document.querySelector("#outputList");
 const outputPlaceholder = document.querySelector("#outputPlaceholder");
 
-const OUTPUT_MIN_LIFETIME = 5000;
-const ENTRY_FADE_DURATION = 420;
 const PLACEHOLDER_INTERVAL = 420;
 const KEY_PRESS_AUDIO_PATH = "assets/audio/key-press.mp3";
 const KEY_PRESS_MIN_PITCH = 0.86;
@@ -92,22 +90,6 @@ async function typeEntry(shell, entry, text) {
   entry.classList.remove("is-typing");
 }
 
-function scheduleEntryRemoval(shell) {
-  window.setTimeout(() => removeEntry(shell), OUTPUT_MIN_LIFETIME);
-}
-
-async function removeEntry(shell) {
-  if (!shell.isConnected || shell.classList.contains("is-leaving")) {
-    return;
-  }
-
-  shell.classList.add("is-leaving");
-  await wait(ENTRY_FADE_DURATION);
-
-  shell.remove();
-  updateEmptyState();
-}
-
 async function processTypingQueue() {
   if (isTyping) {
     return;
@@ -123,10 +105,6 @@ async function processTypingQueue() {
     }
 
     await typeEntry(shell, entry, text);
-
-    if (shell.isConnected) {
-      scheduleEntryRemoval(shell);
-    }
   }
 
   isTyping = false;
