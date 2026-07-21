@@ -1,8 +1,10 @@
 import { parseIntent } from "./src/intentParser.js";
 import { createGameEngine } from "./src/gameEngine.js";
+import { highlightText } from "./src/textHighlighter.js";
 
 const commandForm = document.querySelector("#commandForm");
 const commandInput = document.querySelector("#commandInput");
+const commandHighlight = document.querySelector("#commandHighlight");
 const outputList = document.querySelector("#outputList");
 const outputPlaceholder = document.querySelector("#outputPlaceholder");
 
@@ -28,6 +30,11 @@ function wait(milliseconds) {
 
 function updateEmptyState() {
   outputPlaceholder.hidden = outputList.children.length !== 0;
+}
+
+function updateInputHighlight() {
+  commandHighlight.innerHTML = highlightText(commandInput.value || " ");
+  commandHighlight.scrollLeft = commandInput.scrollLeft;
 }
 
 function getTypingDelay(character) {
@@ -68,13 +75,15 @@ function removeOldestOverflowingEntries(protectedShell = null) {
 
 async function typeEntry(shell, entry, text) {
   entry.classList.add("is-typing");
+  let visibleText = "";
 
   for (const character of text) {
     if (!shell.isConnected) {
       return;
     }
 
-    entry.textContent += character;
+    visibleText += character;
+    entry.innerHTML = highlightText(visibleText);
     playKeyPressSound();
     removeOldestOverflowingEntries(shell);
     await wait(getTypingDelay(character));
@@ -156,6 +165,9 @@ window.setInterval(() => {
   outputPlaceholder.textContent = states[placeholderIndex];
 }, PLACEHOLDER_INTERVAL);
 
+commandInput.addEventListener("input", updateInputHighlight);
+commandInput.addEventListener("scroll", updateInputHighlight);
+
 commandForm.addEventListener("submit", (event) => {
   event.preventDefault();
 
@@ -167,14 +179,17 @@ commandForm.addEventListener("submit", (event) => {
 
   processCommand(command);
   commandInput.value = "";
+  updateInputHighlight();
   commandInput.focus();
 });
 
 window.addEventListener("resize", () => {
   removeOldestOverflowingEntries();
+  updateInputHighlight();
 });
 
 window.addEventListener("load", () => {
   updateEmptyState();
+  updateInputHighlight();
   commandInput.focus();
 });
