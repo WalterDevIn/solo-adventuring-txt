@@ -9,6 +9,9 @@
   --border-soft: rgba(245, 246, 250, 0.16);
   --red-fringe: rgba(255, 35, 74, 0.36);
   --blue-fringe: rgba(45, 125, 255, 0.38);
+  --token-verb: #ff9d4d;
+  --token-npc: #75e59a;
+  --token-place: #67d9ff;
 }
 
 * { box-sizing: border-box; }
@@ -118,19 +121,56 @@ body::after {
     inset 0 0 24px rgba(255,255,255,.026);
 }
 
+.command-highlight,
 #commandInput {
   width: 100%;
   min-width: 0;
   border: 0;
-  outline: 0;
   background: transparent;
-  color: var(--white);
-  caret-color: var(--white);
   font: inherit;
   font-size: clamp(1rem, 2vw, 1.24rem);
   letter-spacing: .035em;
   line-height: 1.5;
+  white-space: pre;
+}
+
+.command-highlight {
+  position: absolute;
+  z-index: 0;
+  right: 1.55rem;
+  left: 1.55rem;
+  overflow: hidden;
+  pointer-events: none;
+  color: var(--white);
   text-shadow: -1px 0 var(--red-fringe), 1px 0 var(--blue-fringe), 0 0 8px rgba(255,255,255,.2);
+}
+
+#commandInput {
+  position: relative;
+  z-index: 1;
+  outline: 0;
+  color: transparent;
+  caret-color: var(--white);
+  -webkit-text-fill-color: transparent;
+}
+
+#commandInput::selection {
+  background: rgba(245,246,250,.22);
+}
+
+.token-verb {
+  color: var(--token-verb);
+  text-shadow: 0 0 8px rgba(255,157,77,.22);
+}
+
+.token-npc {
+  color: var(--token-npc);
+  text-shadow: 0 0 8px rgba(117,229,154,.2);
+}
+
+.token-place {
+  color: var(--token-place);
+  text-shadow: 0 0 8px rgba(103,217,255,.22);
 }
 
 .console-box--output {
@@ -227,6 +267,10 @@ body::after {
   .console-box--output {
     padding-right: 1rem;
     padding-left: 1rem;
+  }
+  .command-highlight {
+    right: 1rem;
+    left: 1rem;
   }
   .marker-stack { font-size: .66rem; }
 }
