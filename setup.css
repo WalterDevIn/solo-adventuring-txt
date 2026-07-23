@@ -1,0 +1,208 @@
+.setup-screen {
+  width: min(980px, 94vw);
+}
+
+.setup-header {
+  margin-bottom: 1.4rem;
+  border-bottom: 1px solid var(--border-soft);
+  padding-bottom: 1rem;
+}
+
+.setup-header h1,
+.setup-header p,
+.panel-heading h2 {
+  margin: 0;
+}
+
+.setup-header h1 {
+  margin-top: .25rem;
+  font-size: clamp(1.5rem, 4vw, 2.65rem);
+  font-weight: 500;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  text-shadow: -1px 0 var(--red-fringe), 1px 0 var(--blue-fringe);
+}
+
+.setup-header > p:last-child {
+  margin-top: .65rem;
+  color: rgba(245, 246, 250, .62);
+}
+
+.eyebrow {
+  color: var(--token-place);
+  font-size: .76rem;
+  letter-spacing: .2em;
+}
+
+.setup-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.selection-panel {
+  min-width: 0;
+  border: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(255,255,255,.018), transparent 35%), var(--surface);
+  box-shadow:
+    -1.5px 0 0 var(--red-fringe),
+    1.5px 0 0 var(--blue-fringe),
+    inset 0 0 22px rgba(255,255,255,.018);
+}
+
+.panel-heading {
+  display: flex;
+  align-items: center;
+  gap: .8rem;
+  border-bottom: 1px solid var(--border-soft);
+  padding: .9rem 1rem;
+}
+
+.panel-heading span {
+  color: rgba(245, 246, 250, .42);
+  font-size: .75rem;
+}
+
+.panel-heading h2 {
+  font-size: 1rem;
+  font-weight: 400;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.selection-list {
+  display: grid;
+  gap: .7rem;
+  padding: .8rem;
+}
+
+.selection-card {
+  display: grid;
+  width: 100%;
+  grid-template-columns: 2rem minmax(0, 1fr) auto;
+  gap: .8rem;
+  align-items: start;
+  border: 1px solid var(--border-soft);
+  background: rgba(255,255,255,.015);
+  padding: .95rem;
+  color: var(--white);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 160ms ease, background-color 160ms ease, transform 160ms ease;
+}
+
+.selection-card:hover,
+.selection-card:focus-visible {
+  border-color: rgba(245, 246, 250, .72);
+  background: rgba(255,255,255,.035);
+  outline: none;
+}
+
+.selection-card:active {
+  transform: translateY(1px);
+}
+
+.selection-card.is-selected {
+  border-color: var(--token-place);
+  background: rgba(103, 217, 255, .055);
+  box-shadow: inset 3px 0 0 var(--token-place);
+}
+
+.selection-card__marker {
+  color: rgba(245, 246, 250, .52);
+  font-size: 1.1rem;
+}
+
+.selection-card.is-selected .selection-card__marker {
+  color: var(--token-place);
+}
+
+.selection-card__body {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: .22rem;
+}
+
+.selection-card__body strong {
+  font-weight: 500;
+  letter-spacing: .04em;
+}
+
+.selection-card__body > span {
+  color: var(--token-npc);
+  font-size: .82rem;
+}
+
+.selection-card__body small {
+  color: rgba(245, 246, 250, .56);
+  line-height: 1.45;
+}
+
+.selection-card__stats {
+  color: rgba(245, 246, 250, .62);
+  font-size: .74rem;
+  line-height: 1.55;
+  text-align: right;
+}
+
+.setup-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1rem;
+  border-top: 1px solid var(--border-soft);
+  padding-top: 1rem;
+}
+
+.encounter-summary {
+  min-height: 1.4em;
+  color: rgba(245, 246, 250, .68);
+  font-size: .88rem;
+  letter-spacing: .04em;
+}
+
+.start-button {
+  border: 1px solid var(--white);
+  background: var(--white);
+  padding: .9rem 1.2rem;
+  color: #020203;
+  font: inherit;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.start-button:hover:not(:disabled),
+.start-button:focus-visible:not(:disabled) {
+  box-shadow: -2px 0 0 var(--red-fringe), 2px 0 0 var(--blue-fringe), 0 0 20px rgba(255,255,255,.12);
+  outline: none;
+}
+
+.start-button:disabled {
+  border-color: var(--border-soft);
+  background: transparent;
+  color: rgba(245, 246, 250, .3);
+  cursor: not-allowed;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+@media (max-width: 720px) {
+  .setup-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .setup-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .start-button {
+    width: 100%;
+  }
+}
