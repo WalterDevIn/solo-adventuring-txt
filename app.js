@@ -2,11 +2,52 @@ import { parseIntent } from "./src/intentParser.js";
 import { createGameEngine } from "./src/gameEngine.js";
 import { highlightText } from "./src/textHighlighter.js";
 
+const setupScreen = document.querySelector("#setupScreen");
+const consoleScreen = document.querySelector("#consoleScreen");
+const characterList = document.querySelector("#characterList");
+const enemyList = document.querySelector("#enemyList");
+const encounterSummary = document.querySelector("#encounterSummary");
+const startBattleButton = document.querySelector("#startBattleButton");
 const commandForm = document.querySelector("#commandForm");
 const commandInput = document.querySelector("#commandInput");
 const commandHighlight = document.querySelector("#commandHighlight");
 const outputList = document.querySelector("#outputList");
 const outputPlaceholder = document.querySelector("#outputPlaceholder");
+
+const CHARACTERS = [
+  {
+    id: "fighter",
+    name: "Walter",
+    role: "Human Fighter",
+    summary: "Reliable frontline combatant.",
+    hp: 12,
+    armorClass: 15,
+  },
+];
+
+const ENEMIES = [
+  {
+    id: "green-slime",
+    name: "Green Slime",
+    role: "Ooze / CR 1/4",
+    summary: "Slow, corrosive and difficult to intimidate.",
+    hp: 8,
+    armorClass: 8,
+  },
+  {
+    id: "cave-rat",
+    name: "Cave Rat",
+    role: "Beast / CR 0",
+    summary: "Fast and fragile. Dangerous in numbers.",
+    hp: 4,
+    armorClass: 12,
+  },
+];
+
+const selection = {
+  characterId: CHARACTERS[0]?.id ?? null,
+  enemyIds: new Set(),
+};
 
 const PLACEHOLDER_INTERVAL = 420;
 const KEY_PRESS_AUDIO_PATH = "assets/audio/key-press.mp3";
@@ -26,6 +67,69 @@ function wait(milliseconds) {
   return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 }
 
+function createSelectionCard(entry, type) {
+  const isCharacter = type === "character";
+  const card = document.createElement("button");
+  card.className = "selection-card";
+  card.type = "button";
+  card.dataset.id = entry.id;
+  card.dataset.type = type;
+  card.setAttribute("aria-pressed", "false");
+
+  card.innerHTML = `
+    <span class="selection-card__marker">${isCharacter ? "@" : "×"}</span>
+    <span class="selection-card__body">
+      <strong>${entry.name}</strong>
+      <span>${entry.role}</span>
+      <small>${entry.summary}</small>
+    </span>
+    <span class="selection-card__stats">HP ${entry.hp}<br>AC ${entry.armorClass}</span>
+  `;
+
+  card.addEventListener("click", () => {
+    if (isCharacter) {
+      selection.characterId = entry.id;
+    } else if (selection.enemyIds.has(entry.id)) {
+      selection.enemyIds.delete(entry.id);
+    } else {
+      selection.enemyIds.add(entry.id);
+    }
+
+    renderSelections();
+  });
+
+  return card;
+}
+
+function renderSelectionLists() {
+  characterList.replaceChildren(
+    ...CHARACTERS.map((entry) => createSelectionCard(entry, "character")),
+  );
+  enemyList.replaceChildren(
+    ...ENEMIES.map((entry) => createSelectionCard(entry, "enemy")),
+  );
+}
+
+function renderSelections() {
+  document.querySelectorAll(".selection-card").forEach((card) => {
+    const selected = card.dataset.type === "character"
+      ? card.dataset.id === selection.characterId
+      : selection.enemyIds.has(card.dataset.id);
+
+    card.classList.toggle("is-selected", selected);
+    card.setAttribute("aria-pressed", String(selected));
+  });
+
+  const character = CHARACTERS.find((entry) => entry.id === selection.characterId);
+  const enemies = ENEMIES.filter((entry) => selection.enemyIds.has(entry.id));
+  const valid = Boolean(character && enemies.length > 0);
+
+  encounterSummary.textContent = valid
+    ? `${character.name} // ${enemies.map((enemy) => enemy.name).join(" + ")}`
+    : "Select at least one enemy.";
+  startBattleButton.disabled = !valid;
+}
+
 function updateEmptyState() {
   outputPlaceholder.hidden = outputList.children.length !== 0;
 }
@@ -40,10 +144,7 @@ function getTypingDelay(character) {
 }
 
 function getRandomPitch() {
-  return (
-    KEY_PRESS_MIN_PITCH +
-    Math.random() * (KEY_PRESS_MAX_PITCH - KEY_PRESS_MIN_PITCH)
-  );
+  return KEY_PRESS_MIN_PITCH + Math.random() * (KEY_PRESS_MAX_PITCH - KEY_PRESS_MIN_PITCH);
 }
 
 function playKeyPressSound() {
@@ -51,23 +152,15 @@ function playKeyPressSound() {
   sound.volume = KEY_PRESS_VOLUME;
   sound.playbackRate = getRandomPitch();
   sound.preservesPitch = false;
-
-  sound.play().catch(() => {
-    // Browsers may block audio until the first user interaction.
-  });
+  sound.play().catch(() => {});
 }
 
 function removeOldestOverflowingEntries(protectedShell = null) {
   while (outputList.scrollHeight > outputList.clientHeight) {
     const oldestShell = outputList.firstElementChild;
-
-    if (!oldestShell || oldestShell === protectedShell) {
-      break;
-    }
-
+    if (!oldestShell || oldestShell === protectedShell) break;
     oldestShell.remove();
   }
-
   updateEmptyState();
 }
 
@@ -76,10 +169,7 @@ async function typeEntry(shell, entry, text) {
   let visibleText = "";
 
   for (const character of text) {
-    if (!shell.isConnected) {
-      return;
-    }
-
+    if (!shell.isConnected) return;
     visibleText += character;
     entry.innerHTML = highlightText(visibleText);
     playKeyPressSound();
@@ -91,20 +181,12 @@ async function typeEntry(shell, entry, text) {
 }
 
 async function processTypingQueue() {
-  if (isTyping) {
-    return;
-  }
-
+  if (isTyping) return;
   isTyping = true;
 
   while (typingQueue.length > 0) {
     const { shell, entry, text } = typingQueue.shift();
-
-    if (!shell.isConnected) {
-      continue;
-    }
-
-    await typeEntry(shell, entry, text);
+    if (shell.isConnected) await typeEntry(shell, entry, text);
   }
 
   isTyping = false;
@@ -112,16 +194,12 @@ async function processTypingQueue() {
 
 function addOutput(text) {
   outputPlaceholder.hidden = true;
-
   const shell = document.createElement("div");
   shell.className = "output-entry-shell";
-
   const entry = document.createElement("p");
   entry.className = "output-entry";
-
   shell.append(entry);
   outputList.append(shell);
-
   removeOldestOverflowingEntries(shell);
   typingQueue.push({ shell, entry, text });
   processTypingQueue();
@@ -130,11 +208,20 @@ function addOutput(text) {
 function processCommand(command) {
   const intent = parseIntent(command);
   const result = gameEngine.processIntent(intent);
-
   console.debug("Command intent", intent);
   console.debug("Game result", result);
-
   addOutput(result.message);
+}
+
+function startCombatPrototype() {
+  const character = CHARACTERS.find((entry) => entry.id === selection.characterId);
+  const enemies = ENEMIES.filter((entry) => selection.enemyIds.has(entry.id));
+  if (!character || enemies.length === 0) return;
+
+  setupScreen.hidden = true;
+  consoleScreen.hidden = false;
+  addOutput(`Combat configured. ${character.name} faces ${enemies.map((enemy) => enemy.name).join(" and ")}.`);
+  commandInput.focus();
 }
 
 window.setInterval(() => {
@@ -143,18 +230,16 @@ window.setInterval(() => {
   outputPlaceholder.textContent = states[placeholderIndex];
 }, PLACEHOLDER_INTERVAL);
 
+startBattleButton.addEventListener("click", startCombatPrototype);
 commandInput.addEventListener("input", updateInputHighlight);
 commandInput.addEventListener("scroll", updateInputHighlight);
-
 commandForm.addEventListener("submit", (event) => {
   event.preventDefault();
-
   const command = commandInput.value.trim();
   if (!command) {
     commandInput.focus();
     return;
   }
-
   processCommand(command);
   commandInput.value = "";
   updateInputHighlight();
@@ -167,7 +252,8 @@ window.addEventListener("resize", () => {
 });
 
 window.addEventListener("load", () => {
+  renderSelectionLists();
+  renderSelections();
   updateEmptyState();
   updateInputHighlight();
-  commandInput.focus();
 });
