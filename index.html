@@ -13,7 +13,40 @@
   </head>
   <body>
     <main class="game-shell" aria-label="Interfaz del juego de rol de texto">
-      <section class="console-layout">
+      <section class="setup-screen" id="setupScreen" aria-labelledby="setupTitle">
+        <header class="setup-header">
+          <p class="eyebrow">COMBAT PROTOTYPE / 00</p>
+          <h1 id="setupTitle">Configure encounter</h1>
+          <p>Select one character and at least one enemy.</p>
+        </header>
+
+        <div class="setup-grid">
+          <section class="selection-panel" aria-labelledby="characterTitle">
+            <div class="panel-heading">
+              <span>01</span>
+              <h2 id="characterTitle">Character</h2>
+            </div>
+            <div class="selection-list" id="characterList"></div>
+          </section>
+
+          <section class="selection-panel" aria-labelledby="enemyTitle">
+            <div class="panel-heading">
+              <span>02</span>
+              <h2 id="enemyTitle">Enemies</h2>
+            </div>
+            <div class="selection-list" id="enemyList"></div>
+          </section>
+        </div>
+
+        <footer class="setup-footer">
+          <div class="encounter-summary" id="encounterSummary" aria-live="polite"></div>
+          <button class="start-button" id="startBattleButton" type="button" disabled>
+            Start combat
+          </button>
+        </footer>
+      </section>
+
+      <section class="console-layout" id="consoleScreen" hidden>
         <div class="console-stack">
           <section
             class="console-box console-box--output"
@@ -33,7 +66,6 @@
               autocomplete="off"
               spellcheck="false"
               aria-label="Comando"
-              autofocus
             />
           </form>
         </div>
