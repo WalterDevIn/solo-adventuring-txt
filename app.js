@@ -61,6 +61,7 @@ const keyPressSound = new Audio(KEY_PRESS_AUDIO_PATH);
 const gameEngine = createGameEngine("CITY");
 const battleManager = createBattleManager();
 keyPressSound.preload = "auto";
+keyPressSound.load();
 
 let isTyping = false;
 let placeholderIndex = 0;
@@ -152,11 +153,22 @@ function getRandomPitch() {
 }
 
 function playKeyPressSound() {
-  const sound = keyPressSound.cloneNode();
-  sound.volume = KEY_PRESS_VOLUME;
-  sound.playbackRate = getRandomPitch();
-  sound.preservesPitch = false;
-  sound.play().catch(() => {});
+  keyPressSound.pause();
+  keyPressSound.currentTime = 0;
+  keyPressSound.volume = KEY_PRESS_VOLUME;
+  keyPressSound.playbackRate = getRandomPitch();
+  keyPressSound.preservesPitch = false;
+  keyPressSound.play().catch(() => {
+    // Browsers may block audio until the first user interaction.
+  });
+}
+
+function isPrintableInputKey(event) {
+  return event.key.length === 1
+    && !event.ctrlKey
+    && !event.metaKey
+    && !event.altKey
+    && !event.isComposing;
 }
 
 function removeOldestOverflowingEntries(protectedShell = null) {
@@ -278,6 +290,11 @@ window.setInterval(() => {
 }, PLACEHOLDER_INTERVAL);
 
 startBattleButton.addEventListener("click", startCombatPrototype);
+commandInput.addEventListener("keydown", (event) => {
+  if (isPrintableInputKey(event)) {
+    playKeyPressSound();
+  }
+});
 commandInput.addEventListener("input", updateInputHighlight);
 commandInput.addEventListener("scroll", updateInputHighlight);
 commandForm.addEventListener("submit", (event) => {
