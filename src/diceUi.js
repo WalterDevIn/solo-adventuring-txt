@@ -1,21 +1,28 @@
-import { formatModifier, parseDiceCommand, rollDie } from "./dice.js";
+import { formatModifier, parseDiceCommand, rollDice, rollDie } from "./dice.js";
 
 const commandForm = document.querySelector("#commandForm");
 const commandInput = document.querySelector("#commandInput");
 const outputList = document.querySelector("#outputList");
 const outputPlaceholder = document.querySelector("#outputPlaceholder");
 
-const D20_AUDIO_PATH = "assets/audio/dice.mp3";
-const D20_VOLUME = 0.72;
-const d20Sound = new Audio(D20_AUDIO_PATH);
-d20Sound.preload = "auto";
-d20Sound.load();
+const SINGLE_DIE_AUDIO_PATH = "assets/audio/dice.mp3";
+const MULTIPLE_DICE_AUDIO_PATH = "assets/audio/dices.mp3";
+const DICE_VOLUME = 0.72;
 
-function playD20Sound() {
-  d20Sound.pause();
-  d20Sound.currentTime = 0;
-  d20Sound.volume = D20_VOLUME;
-  d20Sound.play().catch(() => {
+const singleDieSound = new Audio(SINGLE_DIE_AUDIO_PATH);
+const multipleDiceSound = new Audio(MULTIPLE_DICE_AUDIO_PATH);
+
+for (const sound of [singleDieSound, multipleDiceSound]) {
+  sound.preload = "auto";
+  sound.load();
+}
+
+function playDiceSound(count) {
+  const sound = count > 1 ? multipleDiceSound : singleDieSound;
+  sound.pause();
+  sound.currentTime = 0;
+  sound.volume = DICE_VOLUME;
+  sound.play().catch(() => {
     // Browsers may block audio until the user has interacted with the page.
   });
 }
@@ -39,6 +46,16 @@ function createLabel(text, className) {
   return element;
 }
 
+function formatRollDetails(roll) {
+  const rolledValues = roll.count === 1
+    ? `natural ${roll.rolls[0]}`
+    : `rolls [${roll.rolls.join(", ")}] = ${roll.raw}`;
+
+  return roll.modifier === 0
+    ? rolledValues
+    : `${rolledValues}${formatModifier(roll.modifier)}`;
+}
+
 function addDiceOutput(roll) {
   outputPlaceholder.hidden = true;
 
@@ -52,7 +69,7 @@ function addDiceOutput(roll) {
   const heading = document.createElement("div");
   heading.className = "dice-output__heading";
   heading.append(
-    createLabel("DICE ROLL", "dice-output__label"),
+    createLabel(roll.count === 1 ? "DIE ROLL" : "DICE ROLL", "dice-output__label"),
     createLabel(roll.expression, "dice-output__expression"),
   );
 
@@ -62,9 +79,7 @@ function addDiceOutput(roll) {
 
   const details = document.createElement("div");
   details.className = "dice-output__details";
-  details.textContent = roll.modifier === 0
-    ? `natural ${roll.raw}`
-    : `natural ${roll.raw}${formatModifier(roll.modifier)}`;
+  details.textContent = formatRollDetails(roll);
 
   entry.append(heading, result, details);
   shell.append(entry);
@@ -109,18 +124,15 @@ commandForm.addEventListener("submit", (event) => {
     return;
   }
 
-  const roll = rollDie(parsed.sides, parsed.modifier);
+  const roll = rollDice(parsed.count, parsed.sides, parsed.modifier);
 
   addDiceOutput(roll);
-
-  if (roll.sides === 20) {
-    playD20Sound();
-  }
-
+  playDiceSound(roll.count);
   clearCommandInput();
 }, true);
 
 window.__soloAdventuringDice = {
   parseDiceCommand,
   rollDie,
+  rollDice,
 };
