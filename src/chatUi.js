@@ -19,6 +19,7 @@ const MESSAGE_ENTRANCE_MS = 240;
 const MESSAGE_DWELL_MS = 180;
 
 const scheduledShells = new WeakSet();
+const queuedShells = new WeakSet();
 let presentationTimeline = Promise.resolve();
 
 function wait(milliseconds) {
@@ -93,12 +94,12 @@ async function revealShell(shell, delay) {
   if (delay > 0) await wait(delay);
   if (!shell.isConnected) return;
 
-  shell.classList.add("output-entry-shell--entering");
-  shell.classList.remove("output-entry-shell--pending");
-  requestAnimationFrame(() => {
+  shell.getBoundingClientRect();
+  await new Promise((resolve) => {
     requestAnimationFrame(() => {
-      shell.classList.remove("output-entry-shell--entering");
+      shell.classList.remove("output-entry-shell--pending");
       shell.classList.add("output-entry-shell--visible");
+      resolve();
     });
   });
 
@@ -110,26 +111,43 @@ function isInitiativeDice(shell) {
   return diceEntry?.dataset.purpose === "Initiative";
 }
 
-function scheduleShell(shell) {
-  if (!(shell instanceof HTMLElement)) return;
-  if (!shell.classList.contains("output-entry-shell")) return;
-  if (scheduledShells.has(shell)) return;
+function isEngineTyping(shell) {
+  const entry = shell.querySelector(".output-entry");
+  if (!entry) return false;
+  return entry.classList.contains("is-typing") || entry.textContent.trim() === "";
+}
 
-  scheduledShells.add(shell);
-  applyOrigin(shell);
+function enqueueReveal(shell) {
+  if (queuedShells.has(shell)) return;
+  queuedShells.add(shell);
 
   const kind = shell.dataset.originKind ?? "dm";
   const immediate = kind === "player" || isInitiativeDice(shell);
-  shell.classList.add("output-entry-shell--pending");
+  const delay = immediate ? 0 : (PRESENTATION_DELAY_MS[kind] ?? PRESENTATION_DELAY_MS.dm);
+  const task = () => revealShell(shell, delay);
 
   if (immediate) {
-    revealShell(shell, 0);
+    task();
     return;
   }
 
-  const delay = PRESENTATION_DELAY_MS[kind] ?? PRESENTATION_DELAY_MS.dm;
-  const task = () => revealShell(shell, delay);
   presentationTimeline = presentationTimeline.then(task, task);
+}
+
+function scheduleShell(shell) {
+  if (!(shell instanceof HTMLElement)) return;
+  if (!shell.classList.contains("output-entry-shell")) return;
+
+  applyOrigin(shell);
+
+  if (!scheduledShells.has(shell)) {
+    scheduledShells.add(shell);
+    shell.classList.add("output-entry-shell--pending");
+  }
+
+  const kind = shell.dataset.originKind ?? "dm";
+  const shouldWaitForTyping = kind === "dm" && isEngineTyping(shell);
+  if (!shouldWaitForTyping) enqueueReveal(shell);
 }
 
 function scheduleUnseenShells() {
@@ -221,6 +239,9 @@ const observer = new MutationObserver(() => {
 observer.observe(outputList, {
   childList: true,
   subtree: true,
+  characterData: true,
+  attributes: true,
+  attributeFilter: ["class"],
 });
 
 window.__soloAdventuringChat = {
