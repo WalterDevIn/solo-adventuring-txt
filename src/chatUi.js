@@ -71,25 +71,78 @@ function refreshMessageGroups() {
   }
 }
 
-function appendPlayerInput(text) {
+function appendMessage(text, { originator, kind }) {
   const shell = document.createElement("div");
   shell.className = "output-entry-shell";
-  shell.dataset.originator = ORIGIN.PLAYER.name;
-  shell.dataset.originKind = ORIGIN.PLAYER.kind;
+  shell.dataset.originator = originator;
+  shell.dataset.originKind = kind;
 
   const entry = document.createElement("p");
-  entry.className = "output-entry output-entry--player-input";
+  entry.className = "output-entry";
   entry.textContent = text;
 
   shell.append(entry);
   outputList.append(shell);
   document.querySelector("#outputPlaceholder").hidden = true;
   refreshMessageGroups();
+  return shell;
+}
+
+function getCurrentIntentOrigin() {
+  const actor = window.__soloAdventuringDebug?.getCurrentActor?.();
+  if (!actor) return ORIGIN.PLAYER;
+
+  const name = actor.components?.Identity?.name ?? ORIGIN.PLAYER.name;
+  const controller = actor.components?.Controller?.type;
+  return controller === "PLAYER"
+    ? { name, kind: "player" }
+    : { name, kind: "creature" };
+}
+
+function parseAttackTarget(command) {
+  const normalized = command.trim().toLowerCase().replace(/\s+/g, " ");
+  const match = normalized.match(
+    /^(?:attack|hit|punch|strike)(?:\s+(?:the\s+)?)?(.+?)(?:\s+with\s+(?:my\s+)?(?:hands|fists|bare hands))?$/i,
+  );
+  if (!match) return null;
+
+  return match[1]
+    .replace(/\s+with\s+(?:my\s+)?(?:hands|fists|bare hands)$/i, "")
+    .trim() || null;
+}
+
+function resolveTargetName(targetText) {
+  const battle = window.__soloAdventuringDebug?.getActiveBattle?.();
+  if (!battle) return targetText;
+
+  const normalized = targetText.toLowerCase();
+  const participants = Object.values(battle.entities);
+  const exact = participants.find((entity) =>
+    entity.components.Identity.name.toLowerCase() === normalized,
+  );
+  if (exact) return exact.components.Identity.name;
+
+  const partial = participants.find((entity) => {
+    const name = entity.components.Identity.name.toLowerCase();
+    return name.includes(normalized) || normalized.includes(name);
+  });
+  return partial?.components.Identity.name ?? targetText;
 }
 
 commandForm.addEventListener("submit", () => {
   const text = commandInput.value.trim();
-  if (text) appendPlayerInput(text);
+  if (!text) return;
+
+  const intentOrigin = getCurrentIntentOrigin();
+  appendMessage(text, {
+    originator: intentOrigin.name,
+    kind: intentOrigin.kind,
+  });
+
+  const attackTarget = parseAttackTarget(text);
+  if (attackTarget && intentOrigin.kind === "player") {
+    appendMessage(`You try to attack ${resolveTargetName(attackTarget)}.`, ORIGIN.DM);
+  }
 }, true);
 
 const observer = new MutationObserver(() => {
@@ -103,18 +156,7 @@ observer.observe(outputList, {
 
 window.__soloAdventuringChat = {
   appendMessage(text, { originator, kind = "creature" }) {
-    const shell = document.createElement("div");
-    shell.className = "output-entry-shell";
-    shell.dataset.originator = originator;
-    shell.dataset.originKind = kind;
-
-    const entry = document.createElement("p");
-    entry.className = "output-entry";
-    entry.textContent = text;
-    shell.append(entry);
-    outputList.append(shell);
-    refreshMessageGroups();
-    return shell;
+    return appendMessage(text, { originator, kind });
   },
   refreshMessageGroups,
 };
