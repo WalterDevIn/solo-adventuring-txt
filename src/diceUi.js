@@ -36,11 +36,7 @@ function playDiceSound(count) {
 function removeOverflowingEntries(protectedShell) {
   while (outputList.scrollHeight > outputList.clientHeight) {
     const oldest = outputList.firstElementChild;
-
-    if (!oldest || oldest === protectedShell) {
-      break;
-    }
-
+    if (!oldest || oldest === protectedShell) break;
     oldest.remove();
   }
 }
@@ -60,21 +56,14 @@ function formatRollDetails(roll) {
   }
 
   if (roll.modifierMode === DICE_MODIFIER_MODE.EACH && roll.modifier !== 0) {
-    return [
-      `rolls [${roll.rolls.join(", ")}]`,
-      `each ${formatModifier(roll.modifier).trim()}`,
-      `adjusted [${roll.adjustedRolls.join(", ")}]`,
-      `total ${roll.total}`,
-    ].join(" · ");
+    return `natural [${roll.rolls.join(", ")}] · adjusted [${roll.adjustedRolls.join(", ")}]`;
   }
 
-  const rolledValues = `rolls [${roll.rolls.join(", ")}] = ${roll.raw}`;
-  return roll.modifier === 0
-    ? rolledValues
-    : `${rolledValues}${formatModifier(roll.modifier)}`;
+  const natural = `[${roll.rolls.join(", ")}] = ${roll.raw}`;
+  return roll.modifier === 0 ? natural : `${natural}${formatModifier(roll.modifier)}`;
 }
 
-function addDiceOutput(roll) {
+export function addDiceOutput(roll, { purpose = "Manual roll", playSound = true } = {}) {
   outputPlaceholder.hidden = true;
 
   const shell = document.createElement("div");
@@ -82,12 +71,13 @@ function addDiceOutput(roll) {
 
   const entry = document.createElement("article");
   entry.className = "dice-output";
-  entry.setAttribute("aria-label", `${roll.expression} rolled ${roll.total}`);
+  entry.setAttribute("aria-label", `${purpose}: ${roll.expression} rolled ${roll.total}`);
 
   const heading = document.createElement("div");
   heading.className = "dice-output__heading";
   heading.append(
-    createLabel(roll.count === 1 ? "DIE ROLL" : "DICE ROLL", "dice-output__label"),
+    createLabel(purpose, "dice-output__purpose"),
+    createLabel("/", "dice-output__separator"),
     createLabel(roll.expression, "dice-output__expression"),
   );
 
@@ -103,6 +93,9 @@ function addDiceOutput(roll) {
   shell.append(entry);
   outputList.append(shell);
   removeOverflowingEntries(shell);
+
+  if (playSound) playDiceSound(roll.count);
+  return shell;
 }
 
 function addDiceError(message) {
@@ -128,10 +121,7 @@ function clearCommandInput() {
 
 commandForm.addEventListener("submit", (event) => {
   const parsed = parseDiceCommand(commandInput.value);
-
-  if (parsed === null) {
-    return;
-  }
+  if (parsed === null) return;
 
   event.preventDefault();
   event.stopImmediatePropagation();
@@ -150,8 +140,7 @@ commandForm.addEventListener("submit", (event) => {
     parsed.modifierMode,
   );
 
-  addDiceOutput(roll);
-  playDiceSound(roll.count);
+  addDiceOutput(roll, { purpose: "Manual roll" });
   clearCommandInput();
 }, true);
 
@@ -160,4 +149,5 @@ window.__soloAdventuringDice = {
   parseDiceCommand,
   rollDie,
   rollDice,
+  addDiceOutput,
 };
