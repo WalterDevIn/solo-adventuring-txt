@@ -63,60 +63,63 @@ function formatRollDetails(roll) {
   return roll.modifier === 0 ? natural : `${natural}${formatModifier(roll.modifier)}`;
 }
 
-function resolveRollContext(actor, purpose) {
-  if (actor) return { actor, purpose };
+function createExpression(roll, concealPrivateValues) {
+  const expression = document.createElement("span");
+  expression.className = "dice-output__expression";
 
-  const separatorIndex = purpose.lastIndexOf(" · ");
-  if (separatorIndex === -1) {
-    return { actor: "Unknown", purpose };
+  const base = roll.count === 1 ? `d${roll.sides}` : `${roll.count}d${roll.sides}`;
+  expression.append(createLabel(base, "dice-output__base"));
+
+  const modifierLabel = roll.modifierLabel ?? null;
+  if (modifierLabel || roll.modifier !== 0) {
+    const modifierText = modifierLabel
+      ? ` + ${modifierLabel}`
+      : formatModifier(roll.modifier);
+    const modifier = createLabel(modifierText, "dice-output__modifier");
+    if (concealPrivateValues) modifier.classList.add("dice-output__secret");
+    expression.append(modifier);
   }
 
-  return {
-    purpose: purpose.slice(0, separatorIndex),
-    actor: purpose.slice(separatorIndex + 3),
-  };
+  return expression;
 }
 
 export function addDiceOutput(
   roll,
   {
     actor = null,
-    purpose = "Manual roll",
+    purpose = null,
     playSound = true,
+    concealPrivateValues = false,
   } = {},
 ) {
   outputPlaceholder.hidden = true;
-  const context = resolveRollContext(actor, purpose);
 
   const shell = document.createElement("div");
   shell.className = "output-entry-shell output-entry-shell--dice";
 
   const entry = document.createElement("article");
   entry.className = "dice-output";
-  entry.setAttribute(
-    "aria-label",
-    `${context.actor} rolls ${roll.expression} for ${context.purpose} and gets ${roll.total}`,
+  entry.dataset.actor = actor ?? "";
+  entry.dataset.purpose = purpose ?? "";
+  entry.setAttribute("aria-label", `Dice roll: ${roll.expression}`);
+
+  const main = document.createElement("div");
+  main.className = "dice-output__main";
+  main.append(
+    createExpression(roll, concealPrivateValues),
+    createLabel(":", "dice-output__colon"),
   );
 
-  const heading = document.createElement("div");
-  heading.className = "dice-output__heading";
-  heading.append(
-    createLabel(context.actor, "dice-output__actor"),
-    createLabel("·", "dice-output__separator"),
-    createLabel(context.purpose, "dice-output__purpose"),
-    createLabel("/", "dice-output__separator"),
-    createLabel(roll.expression, "dice-output__expression"),
-  );
-
-  const result = document.createElement("div");
-  result.className = "dice-output__result";
-  result.textContent = String(roll.total);
+  const result = createLabel(String(roll.total), "dice-output__result");
+  if (concealPrivateValues) result.classList.add("dice-output__secret");
+  main.append(result);
 
   const details = document.createElement("div");
   details.className = "dice-output__details";
   details.textContent = formatRollDetails(roll);
+  if (concealPrivateValues) details.classList.add("dice-output__details--concealed");
 
-  entry.append(heading, result, details);
+  entry.append(main, details);
   shell.append(entry);
   outputList.append(shell);
   removeOverflowingEntries(shell);
