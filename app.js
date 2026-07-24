@@ -2,7 +2,7 @@ import { parseIntent } from "./src/intentParser.js";
 import { createGameEngine } from "./src/gameEngine.js";
 import { createBattleManager } from "./src/battleManager.js";
 import { createAudioPool } from "./src/audioPool.js";
-import { addDiceOutput, playDiceSound } from "./src/diceUi.js";
+import { addDiceOutput, waitForDiceTimeline } from "./src/diceUi.js";
 import { highlightText } from "./src/textHighlighter.js";
 
 const setupScreen = document.querySelector("#setupScreen");
@@ -74,6 +74,7 @@ const gameEngine = createGameEngine("CITY");
 const battleManager = createBattleManager();
 
 let isTyping = false;
+let isResolvingAction = false;
 let placeholderIndex = 0;
 
 function wait(milliseconds) {
@@ -88,7 +89,6 @@ function createSelectionCard(entry, type) {
   card.dataset.id = entry.id;
   card.dataset.type = type;
   card.setAttribute("aria-pressed", "false");
-
   card.innerHTML = `
     <span class="selection-card__marker">${isCharacter ? "@" : "×"}</span>
     <span class="selection-card__body">
@@ -107,7 +107,6 @@ function createSelectionCard(entry, type) {
     } else {
       selection.enemyIds.add(entry.id);
     }
-
     renderSelections();
   });
 
@@ -128,7 +127,6 @@ function renderSelections() {
     const selected = card.dataset.type === "character"
       ? card.dataset.id === selection.characterId
       : selection.enemyIds.has(card.dataset.id);
-
     card.classList.toggle("is-selected", selected);
     card.setAttribute("aria-pressed", String(selected));
   });
@@ -253,19 +251,20 @@ function describeAttackResult(result) {
     + nextTurnText;
 }
 
-function renderUnarmedAttack(result) {
-  addDiceOutput(result.attackRoll, {
+async function renderUnarmedAttack(result) {
+  await addDiceOutput(result.attackRoll, {
     actor: result.attackerName,
     purpose: "Unarmed attack",
   });
 
   if (result.hit && result.damageRoll) {
-    addDiceOutput(result.damageRoll, {
+    await addDiceOutput(result.damageRoll, {
       actor: result.attackerName,
       purpose: "Unarmed damage",
     });
   }
 
+  await waitForDiceTimeline();
   addOutput(describeAttackResult(result));
 }
 
@@ -300,7 +299,7 @@ function processBattleCommand(command) {
   return { handled: false, message: "" };
 }
 
-function processCommand(command) {
+async function processCommand(command) {
   const battleResult = processBattleCommand(command);
 
   if (battleResult.handled) {
@@ -308,7 +307,7 @@ function processCommand(command) {
       if (!battleResult.result.ok) {
         addOutput(battleResult.result.message);
       } else {
-        renderUnarmedAttack(battleResult.result);
+        await renderUnarmedAttack(battleResult.result);
       }
       return;
     }
@@ -341,20 +340,17 @@ function createInitiativeRoll(participant) {
   };
 }
 
-function renderInitiativeRolls(battle) {
+async function renderInitiativeRolls(battle) {
   for (const entityId of battle.components.BattleParticipants.entityIds) {
     const participant = battle.entities[entityId];
-    addDiceOutput(createInitiativeRoll(participant), {
+    await addDiceOutput(createInitiativeRoll(participant), {
       actor: participant.components.Identity.name,
       purpose: "Initiative",
-      playSound: false,
     });
   }
-
-  playDiceSound(battle.components.BattleParticipants.entityIds.length);
 }
 
-function startCombatPrototype() {
+async function startCombatPrototype() {
   const character = CHARACTERS.find((entry) => entry.id === selection.characterId);
   const enemies = ENEMIES.filter((entry) => selection.enemyIds.has(entry.id));
   if (!character || enemies.length === 0 || battleManager.hasActiveBattle()) return;
@@ -368,13 +364,19 @@ function startCombatPrototype() {
 
   setupScreen.hidden = true;
   consoleScreen.hidden = false;
+  commandInput.disabled = true;
+  isResolvingAction = true;
 
-  renderInitiativeRolls(battle);
+  await renderInitiativeRolls(battle);
+  await waitForDiceTimeline();
   addOutput(
     `Initiative order: ${orderSummary}.\n`
     + `Round 1 begins. It is ${currentActor.components.Identity.name}'s turn.\n`
     + `Use "attack slime", "punch rat", or "pass".`,
   );
+
+  isResolvingAction = false;
+  commandInput.disabled = false;
   commandInput.focus();
 }
 
@@ -384,23 +386,38 @@ window.setInterval(() => {
   outputPlaceholder.textContent = states[placeholderIndex];
 }, PLACEHOLDER_INTERVAL);
 
-startBattleButton.addEventListener("click", startCombatPrototype);
+startBattleButton.addEventListener("click", () => {
+  startCombatPrototype();
+});
+
 commandInput.addEventListener("keydown", (event) => {
   if (isPrintableInputKey(event)) inputKeySound.play();
 });
 commandInput.addEventListener("input", updateInputHighlight);
 commandInput.addEventListener("scroll", updateInputHighlight);
-commandForm.addEventListener("submit", (event) => {
+
+commandForm.addEventListener("submit", async (event) => {
   event.preventDefault();
+  if (isResolvingAction) return;
+
   const command = commandInput.value.trim();
   if (!command) {
     commandInput.focus();
     return;
   }
-  processCommand(command);
+
   commandInput.value = "";
   updateInputHighlight();
-  commandInput.focus();
+  commandInput.disabled = true;
+  isResolvingAction = true;
+
+  try {
+    await processCommand(command);
+  } finally {
+    isResolvingAction = false;
+    commandInput.disabled = false;
+    commandInput.focus();
+  }
 });
 
 window.addEventListener("resize", () => {
