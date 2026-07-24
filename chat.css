@@ -21,11 +21,17 @@
   max-width: 82%;
   flex-direction: column;
   align-self: flex-start;
+  transform-origin: left bottom;
+  transition:
+    opacity 240ms ease,
+    transform 240ms cubic-bezier(.22, .78, .24, 1),
+    filter 240ms ease;
 }
 
 .output-entry-shell--player {
   align-self: flex-end;
   align-items: flex-end;
+  transform-origin: right bottom;
 }
 
 .output-entry-shell--dm,
@@ -33,6 +39,25 @@
 .output-entry-shell--creature {
   align-self: flex-start;
   align-items: flex-start;
+}
+
+.output-entry-shell--pending {
+  opacity: 0;
+  transform: translateY(.46rem) scale(.975);
+  filter: blur(2px);
+  pointer-events: none;
+}
+
+.output-entry-shell--entering {
+  opacity: .01;
+  transform: translateY(.46rem) scale(.975);
+  filter: blur(2px);
+}
+
+.output-entry-shell--visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  filter: blur(0);
 }
 
 .message-originator {
@@ -124,5 +149,18 @@
 @media (max-width: 640px) {
   .output-entry-shell {
     max-width: 90%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .output-entry-shell {
+    transition-duration: 1ms;
+  }
+
+  .output-entry-shell--pending,
+  .output-entry-shell--entering,
+  .output-entry-shell--visible {
+    transform: none;
+    filter: none;
   }
 }
