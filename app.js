@@ -220,8 +220,63 @@ function normalizeBattleCommand(command) {
   return command.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
+function parseUnarmedAttackCommand(command) {
+  const normalized = normalizeBattleCommand(command);
+  const match = normalized.match(
+    /^(?:attack|hit|punch|strike)(?:\s+(?:the\s+)?)?(.+?)(?:\s+with\s+(?:my\s+)?(?:hands|fists|bare hands))?$/i,
+  );
+  if (!match) return null;
+
+  const target = match[1]
+    .replace(/\s+with\s+(?:my\s+)?(?:hands|fists|bare hands)$/i, "")
+    .trim();
+  return target || null;
+}
+
+function describeAttackResult(result) {
+  if (!result.hit) {
+    return `${result.attackerName} misses ${result.targetName}. `
+      + `The target's AC is ${result.targetArmorClass}.`
+      + (result.nextActorName ? ` It is now ${result.nextActorName}'s turn.` : "");
+  }
+
+  const defeatedText = result.defeated ? ` ${result.targetName} is defeated.` : "";
+  const outcomeText = result.outcome ? ` Battle result: ${result.outcome}.` : "";
+  const nextTurnText = !result.outcome && result.nextActorName
+    ? ` It is now ${result.nextActorName}'s turn.`
+    : "";
+
+  return `${result.attackerName} hits ${result.targetName} for ${result.damage} damage. `
+    + `${result.targetName} has ${result.targetHealth} HP remaining.`
+    + defeatedText
+    + outcomeText
+    + nextTurnText;
+}
+
+function renderUnarmedAttack(result) {
+  addDiceOutput(result.attackRoll, {
+    actor: result.attackerName,
+    purpose: "Unarmed attack",
+  });
+
+  if (result.hit && result.damageRoll) {
+    addDiceOutput(result.damageRoll, {
+      actor: result.attackerName,
+      purpose: "Unarmed damage",
+    });
+  }
+
+  addOutput(describeAttackResult(result));
+}
+
 function processBattleCommand(command) {
   const normalized = normalizeBattleCommand(command);
+  const attackTarget = parseUnarmedAttackCommand(command);
+
+  if (attackTarget) {
+    const result = battleManager.performUnarmedAttack(attackTarget);
+    return { handled: true, kind: "UNARMED_ATTACK", result };
+  }
 
   if (["battle", "battle status", "status", "list battle", "turn status"].includes(normalized)) {
     return { handled: true, message: battleManager.describeActiveBattle() };
@@ -249,6 +304,15 @@ function processCommand(command) {
   const battleResult = processBattleCommand(command);
 
   if (battleResult.handled) {
+    if (battleResult.kind === "UNARMED_ATTACK") {
+      if (!battleResult.result.ok) {
+        addOutput(battleResult.result.message);
+      } else {
+        renderUnarmedAttack(battleResult.result);
+      }
+      return;
+    }
+
     addOutput(battleResult.message);
     return;
   }
@@ -281,7 +345,8 @@ function renderInitiativeRolls(battle) {
   for (const entityId of battle.components.BattleParticipants.entityIds) {
     const participant = battle.entities[entityId];
     addDiceOutput(createInitiativeRoll(participant), {
-      purpose: `Initiative · ${participant.components.Identity.name}`,
+      actor: participant.components.Identity.name,
+      purpose: "Initiative",
       playSound: false,
     });
   }
@@ -306,9 +371,9 @@ function startCombatPrototype() {
 
   renderInitiativeRolls(battle);
   addOutput(
-    `Initiative order: ${orderSummary}.\n` +
-    `Round 1 begins. It is ${currentActor.components.Identity.name}'s turn.\n` +
-    `Type "pass" to advance the mechanical turn cycle.`,
+    `Initiative order: ${orderSummary}.\n`
+    + `Round 1 begins. It is ${currentActor.components.Identity.name}'s turn.\n`
+    + `Use "attack slime", "punch rat", or "pass".`,
   );
   commandInput.focus();
 }
@@ -321,9 +386,7 @@ window.setInterval(() => {
 
 startBattleButton.addEventListener("click", startCombatPrototype);
 commandInput.addEventListener("keydown", (event) => {
-  if (isPrintableInputKey(event)) {
-    inputKeySound.play();
-  }
+  if (isPrintableInputKey(event)) inputKeySound.play();
 });
 commandInput.addEventListener("input", updateInputHighlight);
 commandInput.addEventListener("scroll", updateInputHighlight);
