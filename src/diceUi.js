@@ -63,15 +63,30 @@ function formatRollDetails(roll) {
   return roll.modifier === 0 ? natural : `${natural}${formatModifier(roll.modifier)}`;
 }
 
+function resolveRollContext(actor, purpose) {
+  if (actor) return { actor, purpose };
+
+  const separatorIndex = purpose.lastIndexOf(" · ");
+  if (separatorIndex === -1) {
+    return { actor: "Unknown", purpose };
+  }
+
+  return {
+    purpose: purpose.slice(0, separatorIndex),
+    actor: purpose.slice(separatorIndex + 3),
+  };
+}
+
 export function addDiceOutput(
   roll,
   {
-    actor = "Player",
+    actor = null,
     purpose = "Manual roll",
     playSound = true,
   } = {},
 ) {
   outputPlaceholder.hidden = true;
+  const context = resolveRollContext(actor, purpose);
 
   const shell = document.createElement("div");
   shell.className = "output-entry-shell output-entry-shell--dice";
@@ -80,15 +95,15 @@ export function addDiceOutput(
   entry.className = "dice-output";
   entry.setAttribute(
     "aria-label",
-    `${actor} rolls ${roll.expression} for ${purpose} and gets ${roll.total}`,
+    `${context.actor} rolls ${roll.expression} for ${context.purpose} and gets ${roll.total}`,
   );
 
   const heading = document.createElement("div");
   heading.className = "dice-output__heading";
   heading.append(
-    createLabel(actor, "dice-output__actor"),
+    createLabel(context.actor, "dice-output__actor"),
     createLabel("·", "dice-output__separator"),
-    createLabel(purpose, "dice-output__purpose"),
+    createLabel(context.purpose, "dice-output__purpose"),
     createLabel("/", "dice-output__separator"),
     createLabel(roll.expression, "dice-output__expression"),
   );
