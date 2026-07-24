@@ -1,24 +1,22 @@
 import { rollDie } from "./dice.js";
 import { addDiceOutput, waitForDiceTimeline } from "./diceUi.js";
 
-const commandForm = document.querySelector("#commandForm");
 const commandInput = document.querySelector("#commandInput");
-
 const DM_ORIGIN = { originator: "Dungeon Master", kind: "dm" };
+const AI_POLL_INTERVAL_MS = 140;
+const MAX_CONSECUTIVE_AI_TURNS = 20;
 
 const CREATURE_ATTACKS = Object.freeze({
   "cave-rat": [
     {
       id: "bite",
       name: "Bite",
-      aliases: ["bite", "attack"],
       attackModifier: 4,
       damage: { sides: 4, modifier: 2, type: "piercing" },
     },
     {
       id: "claw",
       name: "Claw",
-      aliases: ["claw", "scratch"],
       attackModifier: 3,
       damage: { sides: 3, modifier: 1, type: "slashing" },
     },
@@ -27,19 +25,19 @@ const CREATURE_ATTACKS = Object.freeze({
     {
       id: "pseudopod",
       name: "Pseudopod",
-      aliases: ["pseudopod", "slam", "attack"],
       attackModifier: 2,
       damage: { sides: 6, modifier: 1, type: "acid" },
     },
     {
       id: "corrosive-splash",
       name: "Corrosive Splash",
-      aliases: ["corrosive splash", "splash"],
       attackModifier: 1,
       damage: { sides: 4, modifier: 2, type: "acid" },
     },
   ],
 });
+
+let aiBusy = false;
 
 function waitForRuntime() {
   if (window.__soloAdventuringDebug && window.__soloAdventuringChat) {
@@ -56,66 +54,98 @@ function waitForRuntime() {
   });
 }
 
-function normalize(value) {
-  return value.trim().toLowerCase().replace(/\s+/g, " ");
-}
-
-function getCurrentActor() {
-  return window.__soloAdventuringDebug?.getCurrentActor?.() ?? null;
+function getDebug() {
+  return window.__soloAdventuringDebug ?? null;
 }
 
 function getBattle() {
-  return window.__soloAdventuringDebug?.getActiveBattle?.() ?? null;
+  return getDebug()?.getActiveBattle?.() ?? null;
 }
 
-function getLivingOpponent(battle, actor, rawTarget) {
-  const normalizedTarget = normalize(rawTarget);
-  const opponents = Object.values(battle.entities).filter((entity) =>
+function getCurrentActor() {
+  return getDebug()?.getCurrentActor?.() ?? null;
+}
+
+function getLivingOpponents(battle, actor) {
+  return Object.values(battle.entities).filter((entity) =>
     entity.team !== actor.team
     && !entity.components.CombatState.defeated
     && entity.components.Health.current > 0,
   );
-
-  return opponents.find((entity) => {
-    const name = normalize(entity.components.Identity.name);
-    const definition = normalize(entity.definitionId ?? "");
-    return name === normalizedTarget
-      || definition === normalizedTarget
-      || name.includes(normalizedTarget)
-      || normalizedTarget.includes(name)
-      || definition.includes(normalizedTarget);
-  }) ?? null;
 }
 
-function parseCreatureAttack(command, actor) {
-  const attacks = CREATURE_ATTACKS[actor.definitionId];
-  if (!attacks) return null;
+function chooseTarget(battle, actor) {
+  const opponents = getLivingOpponents(battle, actor);
+  if (opponents.length === 0) return null;
 
-  const normalizedCommand = normalize(command);
-  for (const attack of attacks) {
-    const aliases = [...attack.aliases].sort((a, b) => b.length - a.length);
-    for (const alias of aliases) {
-      if (normalizedCommand === alias) {
-        return { attack, targetText: "Walter" };
-      }
+  const player = opponents.find((entity) => entity.components.Controller.type === "PLAYER");
+  return player ?? opponents[0];
+}
 
-      if (normalizedCommand.startsWith(`${alias} `)) {
-        const targetText = normalizedCommand.slice(alias.length).trim()
-          .replace(/^the\s+/, "");
-        if (targetText) return { attack, targetText };
-      }
-    }
+function weightedChoice(entries, random = Math.random) {
+  const total = entries.reduce((sum, entry) => sum + entry.weight, 0);
+  let cursor = random() * total;
+
+  for (const entry of entries) {
+    cursor -= entry.weight;
+    if (cursor <= 0) return entry.value;
   }
 
-  return null;
+  return entries.at(-1).value;
+}
+
+function getAttack(actor, attackId) {
+  return CREATURE_ATTACKS[actor.definitionId]?.find((attack) => attack.id === attackId) ?? null;
+}
+
+function chooseRatDecision(actor) {
+  const health = actor.components.Health;
+  const healthRatio = health.maximum > 0 ? health.current / health.maximum : 0;
+
+  if (healthRatio <= 0.25) {
+    return weightedChoice([
+      { value: { type: "pass", intent: "pass", reason: "terrified" }, weight: 76 },
+      { value: { type: "attack", attackId: "bite" }, weight: 19 },
+      { value: { type: "attack", attackId: "claw" }, weight: 5 },
+    ]);
+  }
+
+  if (healthRatio <= 0.5) {
+    return weightedChoice([
+      { value: { type: "pass", intent: "pass", reason: "afraid" }, weight: 56 },
+      { value: { type: "attack", attackId: "bite" }, weight: 34 },
+      { value: { type: "attack", attackId: "claw" }, weight: 10 },
+    ]);
+  }
+
+  return weightedChoice([
+    { value: { type: "pass", intent: "pass", reason: "hesitates" }, weight: 34 },
+    { value: { type: "attack", attackId: "bite" }, weight: 49 },
+    { value: { type: "attack", attackId: "claw" }, weight: 17 },
+  ]);
+}
+
+function chooseSlimeDecision() {
+  return weightedChoice([
+    { value: { type: "attack", attackId: "pseudopod" }, weight: 35 },
+    { value: { type: "attack", attackId: "corrosive-splash" }, weight: 19 },
+    { value: { type: "pass", intent: "stand still", reason: "holds-shape" }, weight: 25 },
+    { value: { type: "pass", intent: "pass", reason: "distracted" }, weight: 21 },
+  ]);
+}
+
+function chooseDecision(actor) {
+  if (actor.definitionId === "cave-rat") return chooseRatDecision(actor);
+  if (actor.definitionId === "green-slime") return chooseSlimeDecision();
+  return { type: "pass", intent: "pass", reason: "hesitates" };
 }
 
 async function say(text) {
   return window.__soloAdventuringChat.appendMessage(text, DM_ORIGIN);
 }
 
-function appendCreatureIntent(actor, command) {
-  return window.__soloAdventuringChat.appendMessage(command, {
+async function appendCreatureIntent(actor, text) {
+  return window.__soloAdventuringChat.appendMessage(text, {
     originator: actor.components.Identity.name,
     kind: "creature",
   });
@@ -144,11 +174,47 @@ function describeTurnContinuation(turnResult) {
   return `${skipped}${nextText}`;
 }
 
-async function executeCreatureAttack(actor, attack, target) {
-  const manager = window.__soloAdventuringDebug.battleManager;
+function formatAttackIntent(actor, attack, target) {
+  if (actor.definitionId === "green-slime") {
+    return `uses ${attack.name} on ${target.components.Identity.name}`;
+  }
+  return `${attack.id} ${target.components.Identity.name}`;
+}
+
+function describePass(actor, decision) {
+  if (actor.definitionId === "cave-rat") {
+    if (decision.reason === "terrified") {
+      return "The cave rat is too terrified to attack and gives up its turn.";
+    }
+    if (decision.reason === "afraid") {
+      return "The cave rat recoils in fear and lets its turn pass.";
+    }
+    return "The cave rat hesitates, searching for an escape instead of attacking.";
+  }
+
+  if (actor.definitionId === "green-slime") {
+    if (decision.reason === "holds-shape") {
+      return "The slime holds itself together and remains perfectly still, passing its turn.";
+    }
+    return "The slime becomes distracted by its own shifting form and loses its turn.";
+  }
+
+  return `${actor.components.Identity.name} hesitates and loses its turn.`;
+}
+
+async function executePass(actor, decision) {
+  const manager = getDebug().battleManager;
+  await appendCreatureIntent(actor, decision.intent);
+  const turnResult = manager.passCurrentTurn();
+  await say(describePass(actor, decision) + describeTurnContinuation(turnResult));
+}
+
+async function executeAttack(actor, attack, target) {
+  const manager = getDebug().battleManager;
   const actorName = actor.components.Identity.name;
   const targetName = target.components.Identity.name;
 
+  await appendCreatureIntent(actor, formatAttackIntent(actor, attack, target));
   await say(`${actorName} tries to use ${attack.name} against ${targetName}.`);
 
   const attackRoll = rollDie(20, attack.attackModifier);
@@ -200,45 +266,72 @@ async function executeCreatureAttack(actor, attack, target) {
   );
 }
 
-commandForm.addEventListener("submit", (event) => {
-  const actor = getCurrentActor();
-  if (!actor || actor.components.Controller.type !== "AI") return;
-
-  const command = commandInput.value.trim();
-  if (!command || command.startsWith("/")) return;
-
-  const parsed = parseCreatureAttack(command, actor);
-  if (!parsed) return;
-
-  event.preventDefault();
-  event.stopImmediatePropagation();
-
+async function executeAiTurn(actor) {
   const battle = getBattle();
-  const target = battle ? getLivingOpponent(battle, actor, parsed.targetText) : null;
+  if (!battle) return;
 
-  commandInput.value = "";
-  commandInput.dispatchEvent(new Event("input", { bubbles: true }));
+  const decision = chooseDecision(actor);
+  if (decision.type === "pass") {
+    await executePass(actor, decision);
+    return;
+  }
+
+  const attack = getAttack(actor, decision.attackId);
+  const target = chooseTarget(battle, actor);
+  if (!attack || !target) {
+    await executePass(actor, { type: "pass", intent: "pass", reason: "hesitates" });
+    return;
+  }
+
+  await executeAttack(actor, attack, target);
+}
+
+async function resolveAiTurns() {
+  if (aiBusy) return;
+
+  const firstActor = getCurrentActor();
+  if (!firstActor || firstActor.components.Controller.type !== "AI") return;
+
+  aiBusy = true;
   commandInput.disabled = true;
 
-  waitForRuntime()
-    .then(() => appendCreatureIntent(actor, command))
-    .then(async () => {
-      if (!target) {
-        await say(`No living target matches "${parsed.targetText}".`);
-        return;
-      }
-      await executeCreatureAttack(actor, parsed.attack, target);
-    })
-    .catch((error) => {
-      console.error("Creature attack failed", error);
-      return say(`Creature attack failed: ${error.message}`);
-    })
-    .finally(() => {
-      commandInput.disabled = false;
-      commandInput.focus();
-    });
-}, true);
+  try {
+    for (let index = 0; index < MAX_CONSECUTIVE_AI_TURNS; index += 1) {
+      const battle = getBattle();
+      const actor = getCurrentActor();
+
+      if (!battle || battle.components.BattleStatus.value !== "ACTIVE") return;
+      if (!actor || actor.components.Controller.type !== "AI") return;
+
+      await executeAiTurn(actor);
+    }
+
+    console.warn("AI turn resolution reached its safety limit.");
+  } catch (error) {
+    console.error("Creature AI failed", error);
+    await say(`Creature AI failed: ${error.message}`);
+  } finally {
+    aiBusy = false;
+    const actor = getCurrentActor();
+    const battle = getBattle();
+    const shouldEnableInput = Boolean(
+      actor
+      && actor.components.Controller.type === "PLAYER"
+      && battle?.components.BattleStatus.value === "ACTIVE",
+    );
+    commandInput.disabled = !shouldEnableInput;
+    if (shouldEnableInput) commandInput.focus();
+  }
+}
+
+waitForRuntime().then(() => {
+  window.setInterval(() => {
+    void resolveAiTurns();
+  }, AI_POLL_INTERVAL_MS);
+});
 
 window.__soloAdventuringCreatureAttacks = {
   catalog: CREATURE_ATTACKS,
+  chooseDecision,
+  resolveAiTurns,
 };
