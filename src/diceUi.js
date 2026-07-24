@@ -63,7 +63,14 @@ function formatRollDetails(roll) {
   return roll.modifier === 0 ? natural : `${natural}${formatModifier(roll.modifier)}`;
 }
 
-export function addDiceOutput(roll, { purpose = "Manual roll", playSound = true } = {}) {
+export function addDiceOutput(
+  roll,
+  {
+    actor = "Player",
+    purpose = "Manual roll",
+    playSound = true,
+  } = {},
+) {
   outputPlaceholder.hidden = true;
 
   const shell = document.createElement("div");
@@ -71,11 +78,16 @@ export function addDiceOutput(roll, { purpose = "Manual roll", playSound = true 
 
   const entry = document.createElement("article");
   entry.className = "dice-output";
-  entry.setAttribute("aria-label", `${purpose}: ${roll.expression} rolled ${roll.total}`);
+  entry.setAttribute(
+    "aria-label",
+    `${actor} rolls ${roll.expression} for ${purpose} and gets ${roll.total}`,
+  );
 
   const heading = document.createElement("div");
   heading.className = "dice-output__heading";
   heading.append(
+    createLabel(actor, "dice-output__actor"),
+    createLabel("·", "dice-output__separator"),
     createLabel(purpose, "dice-output__purpose"),
     createLabel("/", "dice-output__separator"),
     createLabel(roll.expression, "dice-output__expression"),
@@ -140,7 +152,10 @@ commandForm.addEventListener("submit", (event) => {
     parsed.modifierMode,
   );
 
-  addDiceOutput(roll, { purpose: "Manual roll" });
+  addDiceOutput(roll, {
+    actor: "Player",
+    purpose: "Manual roll",
+  });
   clearCommandInput();
 }, true);
 
