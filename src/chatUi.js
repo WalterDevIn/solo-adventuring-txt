@@ -1,4 +1,5 @@
 const outputList = document.querySelector("#outputList");
+const outputPlaceholder = document.querySelector("#outputPlaceholder");
 const commandForm = document.querySelector("#commandForm");
 const commandInput = document.querySelector("#commandInput");
 
@@ -7,6 +8,22 @@ const ORIGIN = Object.freeze({
   DM: { name: "Dungeon Master", kind: "dm" },
   DICE: { name: "Dice", kind: "dice" },
 });
+
+const PRESENTATION_DELAY_MS = Object.freeze({
+  dm: 380,
+  dice: 110,
+  creature: 220,
+  player: 0,
+});
+const MESSAGE_ENTRANCE_MS = 240;
+const MESSAGE_DWELL_MS = 180;
+
+const scheduledShells = new WeakSet();
+let presentationTimeline = Promise.resolve();
+
+function wait(milliseconds) {
+  return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+}
 
 function createOriginLabel(name) {
   const label = document.createElement("span");
@@ -71,6 +88,56 @@ function refreshMessageGroups() {
   }
 }
 
+async function revealShell(shell, delay) {
+  if (!shell.isConnected) return;
+  if (delay > 0) await wait(delay);
+  if (!shell.isConnected) return;
+
+  shell.classList.add("output-entry-shell--entering");
+  shell.classList.remove("output-entry-shell--pending");
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      shell.classList.remove("output-entry-shell--entering");
+      shell.classList.add("output-entry-shell--visible");
+    });
+  });
+
+  await wait(MESSAGE_ENTRANCE_MS + MESSAGE_DWELL_MS);
+}
+
+function isInitiativeDice(shell) {
+  const diceEntry = shell.querySelector(".dice-output");
+  return diceEntry?.dataset.purpose === "Initiative";
+}
+
+function scheduleShell(shell) {
+  if (!(shell instanceof HTMLElement)) return;
+  if (!shell.classList.contains("output-entry-shell")) return;
+  if (scheduledShells.has(shell)) return;
+
+  scheduledShells.add(shell);
+  applyOrigin(shell);
+
+  const kind = shell.dataset.originKind ?? "dm";
+  const immediate = kind === "player" || isInitiativeDice(shell);
+  shell.classList.add("output-entry-shell--pending");
+
+  if (immediate) {
+    revealShell(shell, 0);
+    return;
+  }
+
+  const delay = PRESENTATION_DELAY_MS[kind] ?? PRESENTATION_DELAY_MS.dm;
+  const task = () => revealShell(shell, delay);
+  presentationTimeline = presentationTimeline.then(task, task);
+}
+
+function scheduleUnseenShells() {
+  [...outputList.children]
+    .filter((node) => node instanceof HTMLElement)
+    .forEach(scheduleShell);
+}
+
 function appendMessage(text, { originator, kind }) {
   const shell = document.createElement("div");
   shell.className = "output-entry-shell";
@@ -83,8 +150,9 @@ function appendMessage(text, { originator, kind }) {
 
   shell.append(entry);
   outputList.append(shell);
-  document.querySelector("#outputPlaceholder").hidden = true;
+  outputPlaceholder.hidden = true;
   refreshMessageGroups();
+  scheduleShell(shell);
   return shell;
 }
 
@@ -147,6 +215,7 @@ commandForm.addEventListener("submit", () => {
 
 const observer = new MutationObserver(() => {
   refreshMessageGroups();
+  scheduleUnseenShells();
 });
 
 observer.observe(outputList, {
@@ -159,6 +228,10 @@ window.__soloAdventuringChat = {
     return appendMessage(text, { originator, kind });
   },
   refreshMessageGroups,
+  waitForPresentation() {
+    return presentationTimeline;
+  },
 };
 
 refreshMessageGroups();
+scheduleUnseenShells();
