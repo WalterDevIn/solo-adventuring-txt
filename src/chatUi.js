@@ -1,102 +1,122 @@
 const outputList = document.querySelector("#outputList");
+const commandForm = document.querySelector("#commandForm");
+const commandInput = document.querySelector("#commandInput");
 
-function getBattleParticipants() {
-  const battle = window.__soloAdventuringDebug?.getActiveBattle?.();
-  if (!battle) return [];
+const ORIGIN = Object.freeze({
+  PLAYER: { name: "Walter", kind: "player" },
+  DM: { name: "Dungeon Master", kind: "dm" },
+  DICE: { name: "Dice", kind: "dice" },
+});
 
-  return Object.values(battle.entities).map((entity) => ({
-    name: entity.components.Identity.name,
-    controller: entity.components.Controller.type,
-  }));
+function createOriginLabel(name) {
+  const label = document.createElement("span");
+  label.className = "message-originator";
+  label.textContent = name;
+  return label;
 }
 
-function inferOrigin(shell) {
+function resolveOrigin(shell) {
+  if (shell.dataset.originator && shell.dataset.originKind) {
+    return {
+      name: shell.dataset.originator,
+      kind: shell.dataset.originKind,
+    };
+  }
+
   const entry = shell.querySelector(".output-entry");
-  if (!entry) return { name: "System", kind: "system" };
-
-  if (entry.classList.contains("dice-output")) {
-    return { name: "System", kind: "system" };
-  }
-
-  const text = entry.textContent.trim();
-  const participants = getBattleParticipants();
-
-  for (const participant of participants) {
-    const startsWithName = text === participant.name
-      || text.startsWith(`${participant.name} `)
-      || text.startsWith(`${participant.name}:`)
-      || text.startsWith(`${participant.name}\n`);
-
-    if (startsWithName) {
-      return {
-        name: participant.name,
-        kind: participant.controller === "PLAYER" ? "player" : "creature",
-      };
-    }
-  }
-
-  if (/^you(?:\s|\b)/i.test(text)) {
-    const player = participants.find((participant) => participant.controller === "PLAYER");
-    return { name: player?.name ?? "Player", kind: "player" };
-  }
-
-  return { name: "System", kind: "system" };
+  return entry?.classList.contains("dice-output") ? ORIGIN.DICE : ORIGIN.DM;
 }
 
 function applyOrigin(shell) {
   if (!(shell instanceof HTMLElement)) return;
   if (!shell.classList.contains("output-entry-shell")) return;
 
-  const origin = inferOrigin(shell);
+  const origin = resolveOrigin(shell);
+  shell.dataset.originator = origin.name;
+  shell.dataset.originKind = origin.kind;
   shell.classList.add("output-entry-shell--chat");
   shell.classList.remove(
     "output-entry-shell--player",
     "output-entry-shell--creature",
     "output-entry-shell--system",
+    "output-entry-shell--dm",
+    "output-entry-shell--dice",
   );
   shell.classList.add(`output-entry-shell--${origin.kind}`);
-  shell.dataset.originator = origin.name;
 
   let label = shell.querySelector(":scope > .message-originator");
   if (!label) {
-    label = document.createElement("span");
-    label.className = "message-originator";
+    label = createOriginLabel(origin.name);
     shell.prepend(label);
-  }
-
-  if (label.textContent !== origin.name) {
+  } else if (label.textContent !== origin.name) {
     label.textContent = origin.name;
   }
 }
 
-function processNode(node) {
-  if (!(node instanceof HTMLElement)) return;
+function refreshMessageGroups() {
+  const shells = [...outputList.children].filter((node) =>
+    node instanceof HTMLElement && node.classList.contains("output-entry-shell"),
+  );
 
-  if (node.classList.contains("output-entry-shell")) {
-    applyOrigin(node);
+  let previousOrigin = null;
+  for (const shell of shells) {
+    applyOrigin(shell);
+    const currentOrigin = `${shell.dataset.originKind}:${shell.dataset.originator}`;
+    const grouped = currentOrigin === previousOrigin;
+    shell.classList.toggle("output-entry-shell--grouped", grouped);
+
+    const label = shell.querySelector(":scope > .message-originator");
+    if (label) label.hidden = grouped;
+    previousOrigin = currentOrigin;
   }
-
-  node.querySelectorAll?.(".output-entry-shell").forEach(applyOrigin);
 }
 
-const observer = new MutationObserver((mutations) => {
-  for (const mutation of mutations) {
-    if (mutation.type === "childList") {
-      mutation.addedNodes.forEach(processNode);
-    }
+function appendPlayerInput(text) {
+  const shell = document.createElement("div");
+  shell.className = "output-entry-shell";
+  shell.dataset.originator = ORIGIN.PLAYER.name;
+  shell.dataset.originKind = ORIGIN.PLAYER.kind;
 
-    const shell = mutation.target instanceof HTMLElement
-      ? mutation.target.closest(".output-entry-shell")
-      : mutation.target.parentElement?.closest(".output-entry-shell");
+  const entry = document.createElement("p");
+  entry.className = "output-entry output-entry--player-input";
+  entry.textContent = text;
 
-    if (shell) applyOrigin(shell);
-  }
+  shell.append(entry);
+  outputList.append(shell);
+  document.querySelector("#outputPlaceholder").hidden = true;
+  refreshMessageGroups();
+}
+
+commandForm.addEventListener("submit", () => {
+  const text = commandInput.value.trim();
+  if (text) appendPlayerInput(text);
+}, true);
+
+const observer = new MutationObserver(() => {
+  refreshMessageGroups();
 });
 
 observer.observe(outputList, {
   childList: true,
   subtree: true,
-  characterData: true,
 });
 
-outputList.querySelectorAll(".output-entry-shell").forEach(applyOrigin);
+window.__soloAdventuringChat = {
+  appendMessage(text, { originator, kind = "creature" }) {
+    const shell = document.createElement("div");
+    shell.className = "output-entry-shell";
+    shell.dataset.originator = originator;
+    shell.dataset.originKind = kind;
+
+    const entry = document.createElement("p");
+    entry.className = "output-entry";
+    entry.textContent = text;
+    shell.append(entry);
+    outputList.append(shell);
+    refreshMessageGroups();
+    return shell;
+  },
+  refreshMessageGroups,
+};
+
+refreshMessageGroups();
