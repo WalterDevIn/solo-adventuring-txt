@@ -23,7 +23,7 @@ for (const sound of [singleDieSound, multipleDiceSound]) {
   sound.load();
 }
 
-function playDiceSound(count) {
+export function playDiceSound(count) {
   const sound = count > 1 ? multipleDiceSound : singleDieSound;
   sound.pause();
   sound.currentTime = 0;
@@ -150,4 +150,5 @@ window.__soloAdventuringDice = {
   rollDie,
   rollDice,
   addDiceOutput,
+  playDiceSound,
 };
