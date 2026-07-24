@@ -78,8 +78,8 @@ function chooseTarget(battle, actor) {
   const opponents = getLivingOpponents(battle, actor);
   if (opponents.length === 0) return null;
 
-  const player = opponents.find((entity) => entity.components.Controller.type === "PLAYER");
-  return player ?? opponents[0];
+  return opponents.find((entity) => entity.components.Controller.type === "PLAYER")
+    ?? opponents[0];
 }
 
 function weightedChoice(entries, random = Math.random) {
@@ -95,7 +95,8 @@ function weightedChoice(entries, random = Math.random) {
 }
 
 function getAttack(actor, attackId) {
-  return CREATURE_ATTACKS[actor.definitionId]?.find((attack) => attack.id === attackId) ?? null;
+  return CREATURE_ATTACKS[actor.definitionId]
+    ?.find((attack) => attack.id === attackId) ?? null;
 }
 
 function chooseRatDecision(actor) {
@@ -153,7 +154,9 @@ async function appendCreatureIntent(actor, text) {
 
 function applyDamage(target, damage) {
   const invulnerable = Boolean(target.components.AdminState?.invulnerable);
-  if (invulnerable) return { applied: 0, invulnerable: true, defeated: false };
+  if (invulnerable) {
+    return { applied: 0, invulnerable: true, defeated: false };
+  }
 
   target.components.Health.current = Math.max(0, target.components.Health.current - damage);
   const defeated = target.components.Health.current === 0;
@@ -287,7 +290,10 @@ async function executeAiTurn(actor) {
 }
 
 async function resolveAiTurns() {
-  if (aiBusy) return;
+  // app.js keeps the input disabled until the player's complete presentation
+  // finishes: DM introduction, dice, result narration and typewriter. Respecting
+  // that lock prevents enemies from declaring intentions in the middle of it.
+  if (aiBusy || commandInput.disabled) return;
 
   const firstActor = getCurrentActor();
   if (!firstActor || firstActor.components.Controller.type !== "AI") return;
