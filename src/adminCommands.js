@@ -1,3 +1,7 @@
+const commandForm = document.querySelector("#commandForm");
+const commandInput = document.querySelector("#commandInput");
+const DM_ORIGIN = { originator: "Dungeon Master", kind: "dm" };
+
 function ensureAdminState(entity) {
   entity.components.AdminState ??= {
     invulnerable: false,
@@ -64,12 +68,15 @@ function isTurnSuppressed(battle, entity) {
   return Boolean(ownerId && entity.entityId !== ownerId);
 }
 
-export function reconcileAdminTurnFlow(battleManager) {
+export function reconcileAdminTurnFlow(battleManager, passTurn = null) {
   const battle = getBattle(battleManager);
   if (!battle || battle.components.BattleStatus.value !== "ACTIVE") {
     return { notices: [], currentActor: getCurrentActor(battleManager), outcome: null };
   }
 
+  const rawPass = passTurn
+    ?? battleManager.__adminOriginalPass
+    ?? battleManager.passCurrentTurn.bind(battleManager);
   const notices = [];
   const maximumSkips = Math.max(1, battle.components.TurnOrder.entityIds.length * 2);
 
@@ -90,7 +97,7 @@ export function reconcileAdminTurnFlow(battleManager) {
       notices.push(`Time is stopped for ${name}. Its turn is skipped.`);
     }
 
-    const passResult = battleManager.passCurrentTurn();
+    const passResult = rawPass();
     if (passResult.outcome) {
       return { notices, currentActor: null, outcome: passResult.outcome };
     }
@@ -130,9 +137,7 @@ export function executeAdminCommand(command, battleManager) {
   if (!normalized.startsWith("/")) return { handled: false, messages: [] };
 
   const battle = getBattle(battleManager);
-  if (!battle) {
-    return { handled: true, messages: ["There is no active battle."] };
-  }
+  if (!battle) return { handled: true, messages: ["There is no active battle."] };
 
   const actor = getCurrentActor(battleManager);
 
@@ -156,22 +161,16 @@ export function executeAdminCommand(command, battleManager) {
         `Time is stopped for everyone except ${actor.components.Identity.name}. Only ${actor.components.Identity.name} receives turns.`,
         ...flow.notices,
       ],
-      flow,
     };
   }
 
   const match = normalized.match(/^\/(freeze|revive|kill)\s+(.+)$/);
-  if (!match) {
-    return { handled: true, messages: ["Unknown control command."] };
-  }
+  if (!match) return { handled: true, messages: ["Unknown control command."] };
 
   const [, action, rawTarget] = match;
   const target = findCreature(battle, rawTarget, { defeatedOnly: action === "revive" });
   if (!target) {
-    return {
-      handled: true,
-      messages: [`No matching creature was found for "${rawTarget}".`],
-    };
+    return { handled: true, messages: [`No matching creature was found for "${rawTarget}".`] };
   }
 
   if (action === "freeze") {
@@ -183,7 +182,6 @@ export function executeAdminCommand(command, battleManager) {
         `${target.components.Identity.name} is suspended. It will automatically lose every turn.`,
         ...flow.notices,
       ],
-      flow,
     };
   }
 
@@ -203,11 +201,7 @@ export function executeAdminCommand(command, battleManager) {
     const flow = reconcileAdminTurnFlow(battleManager);
     return {
       handled: true,
-      messages: [
-        `${target.components.Identity.name} is defeated automatically.`,
-        ...flow.notices,
-      ],
-      flow,
+      messages: [`${target.components.Identity.name} is defeated automatically.`, ...flow.notices],
     };
   }
 
@@ -226,10 +220,98 @@ export function executeAdminCommand(command, battleManager) {
   const flow = reconcileAdminTurnFlow(battleManager);
   return {
     handled: true,
-    messages: [
-      `${target.components.Identity.name} returns to the battle with 1 HP.`,
-      ...flow.notices,
-    ],
-    flow,
+    messages: [`${target.components.Identity.name} returns to the battle with 1 HP.`, ...flow.notices],
   };
 }
+
+function installManagerGuards(battleManager) {
+  if (!battleManager || battleManager.__adminCommandsInstalled) return;
+
+  battleManager.__adminCommandsInstalled = true;
+  battleManager.__adminOriginalPass = battleManager.passCurrentTurn.bind(battleManager);
+  battleManager.__adminOriginalAttack = battleManager.performUnarmedAttack.bind(battleManager);
+
+  battleManager.passCurrentTurn = (...args) => {
+    const actorName = getCurrentActor(battleManager)?.components.Identity.name ?? "The actor";
+    const result = battleManager.__adminOriginalPass(...args);
+    if (!result?.ok || result.outcome) return result;
+
+    const flow = reconcileAdminTurnFlow(battleManager, battleManager.__adminOriginalPass);
+    const currentName = flow.currentActor?.components.Identity.name ?? null;
+    const notices = flow.notices.length ? ` ${flow.notices.join(" ")}` : "";
+
+    return {
+      ...result,
+      currentActorId: flow.currentActor?.entityId ?? null,
+      message: `${actorName} passes.${notices}${currentName ? ` It is now ${currentName}'s turn.` : ""}`,
+    };
+  };
+
+  battleManager.performUnarmedAttack = (...args) => {
+    let result = battleManager.__adminOriginalAttack(...args);
+    result = applyInvulnerabilityToAttack(result, battleManager);
+    if (!result?.ok || result.outcome) return result;
+
+    const flow = reconcileAdminTurnFlow(battleManager, battleManager.__adminOriginalPass);
+    return {
+      ...result,
+      nextActorName: flow.currentActor?.components.Identity.name ?? null,
+      turnNotices: flow.notices,
+    };
+  };
+}
+
+async function waitForRuntime() {
+  while (!window.__soloAdventuringDebug || !window.__soloAdventuringChat) {
+    await new Promise((resolve) => window.setTimeout(resolve, 16));
+  }
+  return {
+    battleManager: window.__soloAdventuringDebug.battleManager,
+    chat: window.__soloAdventuringChat,
+  };
+}
+
+async function presentAdminMessages(messages, chat) {
+  for (const message of messages) {
+    await chat.appendMessage(message, DM_ORIGIN);
+  }
+}
+
+async function handleAdminSubmit(event) {
+  if (event.target !== commandForm) return;
+
+  const command = commandInput.value.trim();
+  if (!command.startsWith("/")) return;
+
+  event.preventDefault();
+  event.stopPropagation();
+
+  commandInput.value = "";
+  commandInput.dispatchEvent(new Event("input", { bubbles: true }));
+  commandInput.disabled = true;
+
+  try {
+    const { battleManager, chat } = await waitForRuntime();
+    installManagerGuards(battleManager);
+    const result = executeAdminCommand(command, battleManager);
+    await presentAdminMessages(result.messages, chat);
+  } catch (error) {
+    console.error("Control command failed", error);
+    const { chat } = await waitForRuntime();
+    await chat.appendMessage(`Control command failed: ${error.message}`, DM_ORIGIN);
+  } finally {
+    commandInput.disabled = false;
+    commandInput.focus();
+  }
+}
+
+commandForm.addEventListener("submit", handleAdminSubmit, true);
+
+waitForRuntime().then(({ battleManager }) => {
+  installManagerGuards(battleManager);
+});
+
+window.__soloAdventuringAdmin = {
+  executeAdminCommand,
+  reconcileAdminTurnFlow,
+};
