@@ -9,12 +9,13 @@ const D20_AUDIO_PATH = "assets/audio/dice.mp3";
 const D20_VOLUME = 0.72;
 const d20Sound = new Audio(D20_AUDIO_PATH);
 d20Sound.preload = "auto";
+d20Sound.load();
 
 function playD20Sound() {
-  const sound = d20Sound.cloneNode();
-  sound.volume = D20_VOLUME;
-  sound.currentTime = 0;
-  sound.play().catch(() => {
+  d20Sound.pause();
+  d20Sound.currentTime = 0;
+  d20Sound.volume = D20_VOLUME;
+  d20Sound.play().catch(() => {
     // Browsers may block audio until the user has interacted with the page.
   });
 }
@@ -110,11 +111,12 @@ commandForm.addEventListener("submit", (event) => {
 
   const roll = rollDie(parsed.sides, parsed.modifier);
 
+  addDiceOutput(roll);
+
   if (roll.sides === 20) {
     playD20Sound();
   }
 
-  addDiceOutput(roll);
   clearCommandInput();
 }, true);
 
