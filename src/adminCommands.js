@@ -2,6 +2,7 @@ const commandForm = document.querySelector("#commandForm");
 const commandInput = document.querySelector("#commandInput");
 
 const DM_ORIGIN = { originator: "Dungeon Master", kind: "dm" };
+const ACTIVE_STATUS = "ACTIVE";
 
 function waitForRuntime() {
   if (window.__soloAdventuringDebug && window.__soloAdventuringChat) {
@@ -18,12 +19,16 @@ function waitForRuntime() {
   });
 }
 
+function getDebug() {
+  return window.__soloAdventuringDebug ?? null;
+}
+
 function getBattle() {
-  return window.__soloAdventuringDebug?.getActiveBattle?.() ?? null;
+  return getDebug()?.getActiveBattle?.() ?? null;
 }
 
 function getCurrentActor() {
-  return window.__soloAdventuringDebug?.getCurrentActor?.() ?? null;
+  return getDebug()?.getCurrentActor?.() ?? null;
 }
 
 function getIntentOrigin() {
@@ -68,49 +73,113 @@ function findCreature(battle, rawName, { defeatedOnly = false } = {}) {
   }) ?? null;
 }
 
-function isTurnSuppressed(battle, entity) {
-  if (!entity) return false;
-  if (entity.components.CombatState.defeated || entity.components.Health.current <= 0) return true;
+function isAlive(entity) {
+  return Boolean(
+    entity
+    && !entity.components.CombatState.defeated
+    && entity.components.Health.current > 0,
+  );
+}
 
-  const admin = ensureAdminState(entity);
-  if (admin.frozen) return true;
+function getLivingTeamMembers(battle, team) {
+  return battle.components.BattleTeams[team]
+    .map((entityId) => battle.entities[entityId])
+    .filter(isAlive);
+}
+
+function evaluateOutcome(battle) {
+  const livingPlayers = getLivingTeamMembers(battle, "PLAYER");
+  const livingEnemies = getLivingTeamMembers(battle, "ENEMY");
+
+  if (livingEnemies.length === 0) {
+    battle.components.BattleStatus.value = "VICTORY";
+    return "VICTORY";
+  }
+
+  if (livingPlayers.length === 0) {
+    battle.components.BattleStatus.value = "DEFEAT";
+    return "DEFEAT";
+  }
+
+  battle.components.BattleStatus.value = ACTIVE_STATUS;
+  return null;
+}
+
+function getSuppressionReason(battle, entity) {
+  if (!entity || !isAlive(entity)) return "defeated";
+  if (ensureAdminState(entity).frozen) return "frozen";
 
   const ownerId = battle.components.AdminRules?.stopTimeOwnerId ?? null;
-  return Boolean(ownerId && entity.entityId !== ownerId);
+  if (ownerId && entity.entityId !== ownerId) return "time-stopped";
+  return null;
 }
 
 async function say(text) {
   return window.__soloAdventuringChat.appendMessage(text, DM_ORIGIN);
 }
 
+function setCurrentTurn(battle, entity) {
+  const turnOrder = battle.components.TurnOrder;
+  const index = turnOrder.entityIds.indexOf(entity.entityId);
+  if (index === -1) return;
+
+  turnOrder.currentIndex = index;
+  battle.components.TurnState.activeEntityId = entity.entityId;
+  battle.components.TurnState.phase = "ACTING";
+  battle.components.TurnState.hasActed = false;
+}
+
 async function normalizeTurnFlow() {
-  const debug = window.__soloAdventuringDebug;
+  const debug = getDebug();
   const battle = getBattle();
-  if (!debug || !battle) return;
+  if (!debug || !battle || battle.components.BattleStatus.value !== ACTIVE_STATUS) return;
 
   const originalPass = debug.battleManager.__adminOriginalPass
     ?? debug.battleManager.passCurrentTurn.bind(debug.battleManager);
 
-  const limit = battle.components.TurnOrder.entityIds.length * 3;
+  const orderLength = battle.components.TurnOrder.entityIds.length;
+  const limit = Math.max(1, orderLength * 4);
+
   for (let index = 0; index < limit; index += 1) {
     const actor = getCurrentActor();
-    if (!actor || !isTurnSuppressed(battle, actor)) return;
+    const reason = getSuppressionReason(battle, actor);
+    if (!reason) return;
 
-    const admin = ensureAdminState(actor);
-    if (actor.components.CombatState.defeated || actor.components.Health.current <= 0) {
+    if (reason === "frozen") {
+      await say(`${actor.components.Identity.name} is suspended and automatically loses its turn.`);
+    } else if (reason === "defeated") {
       await say(`${actor.components.Identity.name} is defeated and cannot take its turn.`);
-    } else if (admin.frozen) {
-      await say(`${actor.components.Identity.name} is suspended and loses its turn.`);
-    } else {
-      await say(`Time is stopped for ${actor.components.Identity.name}. Its turn is skipped.`);
     }
 
-    originalPass();
+    const result = originalPass();
+    if (!result?.ok || result.outcome) return;
   }
+
+  console.warn("Automatic turn normalization reached its safety limit.");
+}
+
+function waitUntilActionPresentationFinishes() {
+  return new Promise((resolve) => {
+    const startedAt = performance.now();
+    const check = () => {
+      if (!commandInput.disabled || performance.now() - startedAt > 10000) {
+        resolve();
+        return;
+      }
+      window.setTimeout(check, 32);
+    };
+    check();
+  });
+}
+
+function queueAutomaticTurnMessages() {
+  queueMicrotask(async () => {
+    await normalizeTurnFlow();
+  });
 }
 
 function installTurnGuards() {
-  const manager = window.__soloAdventuringDebug?.battleManager;
+  const manager = getDebug()?.battleManager;
   if (!manager || manager.__adminCommandsInstalled) return;
 
   manager.__adminCommandsInstalled = true;
@@ -119,7 +188,7 @@ function installTurnGuards() {
 
   manager.passCurrentTurn = (...args) => {
     const result = manager.__adminOriginalPass(...args);
-    queueMicrotask(() => normalizeTurnFlow());
+    queueAutomaticTurnMessages();
     return result;
   };
 
@@ -140,9 +209,10 @@ function installTurnGuards() {
       result.defeated = previousDefeated;
       result.outcome = null;
       result.invulnerable = true;
+      battle.components.BattleStatus.value = ACTIVE_STATUS;
     }
 
-    queueMicrotask(() => normalizeTurnFlow());
+    queueAutomaticTurnMessages();
     return result;
   };
 }
@@ -160,7 +230,7 @@ async function executeCommand(command) {
   const actor = getCurrentActor();
   const normalized = command.trim().toLowerCase();
 
-  if (normalized === "/invunerable") {
+  if (normalized === "/invunerable" || normalized === "/invulnerable") {
     if (!actor) return;
     ensureAdminState(actor).invulnerable = true;
     await say(`${actor.components.Identity.name} is now invulnerable and cannot take damage.`);
@@ -185,7 +255,7 @@ async function executeCommand(command) {
   const [, action, rawTarget] = match;
   const target = findCreature(battle, rawTarget, { defeatedOnly: action === "revive" });
   if (!target) {
-    await say(`No matching creature was found for \"${rawTarget}\".`);
+    await say(`No matching creature was found for "${rawTarget}".`);
     return;
   }
 
@@ -199,20 +269,29 @@ async function executeCommand(command) {
   if (action === "kill") {
     target.components.Health.current = 0;
     target.components.CombatState.defeated = true;
-    await say(`${target.components.Identity.name} is defeated automatically.`);
-    await normalizeTurnFlow();
+
+    const outcome = evaluateOutcome(battle);
+    const outcomeText = outcome ? ` Battle result: ${outcome}.` : "";
+    await say(`${target.components.Identity.name} is defeated automatically.${outcomeText}`);
+
+    if (!outcome) await normalizeTurnFlow();
     return;
   }
 
   target.components.Health.current = 1;
   target.components.CombatState.defeated = false;
-  if (battle.components.BattleStatus.value !== "ACTIVE") {
-    battle.components.BattleStatus.value = "ACTIVE";
-  }
+  battle.components.BattleStatus.value = ACTIVE_STATUS;
+
+  const current = getCurrentActor();
+  if (!isAlive(current)) setCurrentTurn(battle, target);
+
   await say(`${target.components.Identity.name} returns to the battle with 1 HP.`);
+  await normalizeTurnFlow();
 }
 
-commandForm.addEventListener("submit", (event) => {
+window.addEventListener("submit", (event) => {
+  if (event.target !== commandForm) return;
+
   const command = commandInput.value.trim();
   if (!command.startsWith("/")) return;
 
@@ -231,7 +310,8 @@ commandForm.addEventListener("submit", (event) => {
       console.error("Control command failed", error);
       return waitForRuntime().then(() => say(`Control command failed: ${error.message}`));
     })
-    .finally(() => {
+    .finally(async () => {
+      await waitUntilActionPresentationFinishes();
       commandInput.disabled = false;
       commandInput.focus();
     });
