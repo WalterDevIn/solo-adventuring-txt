@@ -1,3 +1,4 @@
+const outputBox = document.querySelector("#outputBox");
 const outputList = document.querySelector("#outputList");
 const outputPlaceholder = document.querySelector("#outputPlaceholder");
 const commandForm = document.querySelector("#commandForm");
@@ -17,13 +18,55 @@ const PRESENTATION_DELAY_MS = Object.freeze({
 });
 const MESSAGE_ENTRANCE_MS = 240;
 const MESSAGE_DWELL_MS = 90;
+const MAX_MESSAGE_COUNT = 20;
+const BOTTOM_THRESHOLD_PX = 28;
 
 const scheduledShells = new WeakSet();
 const entrancePromises = new WeakMap();
 let presentationTimeline = Promise.resolve();
+let autoScrollPinned = true;
+let scrollFrame = null;
+let pruningHistory = false;
 
 function wait(milliseconds) {
   return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+}
+
+function getMessageShells() {
+  return [...outputList.children].filter((node) =>
+    node instanceof HTMLElement && node.classList.contains("output-entry-shell"),
+  );
+}
+
+function isNearBottom() {
+  const distance = outputBox.scrollHeight - outputBox.scrollTop - outputBox.clientHeight;
+  return distance <= BOTTOM_THRESHOLD_PX;
+}
+
+function scrollToBottom({ force = false } = {}) {
+  if (force) autoScrollPinned = true;
+  if (!autoScrollPinned) return;
+  if (scrollFrame !== null) cancelAnimationFrame(scrollFrame);
+
+  scrollFrame = requestAnimationFrame(() => {
+    scrollFrame = null;
+    outputBox.scrollTop = outputBox.scrollHeight;
+  });
+}
+
+function pruneMessageHistory() {
+  if (pruningHistory) return;
+  pruningHistory = true;
+
+  try {
+    const shells = getMessageShells();
+    const excess = shells.length - MAX_MESSAGE_COUNT;
+    if (excess <= 0) return;
+
+    shells.slice(0, excess).forEach((shell) => shell.remove());
+  } finally {
+    pruningHistory = false;
+  }
 }
 
 function createOriginLabel(name) {
@@ -72,11 +115,9 @@ function applyOrigin(shell) {
 }
 
 function refreshMessageGroups() {
-  const shells = [...outputList.children].filter((node) =>
-    node instanceof HTMLElement && node.classList.contains("output-entry-shell"),
-  );
-
+  const shells = getMessageShells();
   let previousOrigin = null;
+
   for (const shell of shells) {
     applyOrigin(shell);
     const currentOrigin = `${shell.dataset.originKind}:${shell.dataset.originator}`;
@@ -104,6 +145,7 @@ async function revealShell(shell, delay) {
     requestAnimationFrame(() => {
       shell.classList.remove("output-entry-shell--pending");
       shell.classList.add("output-entry-shell--visible");
+      scrollToBottom();
       resolve();
     });
   });
@@ -142,11 +184,9 @@ function scheduleShell(shell) {
 }
 
 function scheduleUnseenShells() {
-  [...outputList.children]
-    .filter((node) => node instanceof HTMLElement)
-    .forEach((shell) => {
-      if (!scheduledShells.has(shell)) scheduleShell(shell);
-    });
+  getMessageShells().forEach((shell) => {
+    if (!scheduledShells.has(shell)) scheduleShell(shell);
+  });
 }
 
 function appendMessage(text, { originator, kind }) {
@@ -162,8 +202,10 @@ function appendMessage(text, { originator, kind }) {
   shell.append(entry);
   outputList.append(shell);
   outputPlaceholder.hidden = true;
+  pruneMessageHistory();
   refreshMessageGroups();
   scheduleShell(shell);
+  scrollToBottom({ force: true });
   return shell;
 }
 
@@ -189,25 +231,40 @@ commandForm.addEventListener("submit", () => {
   });
 }, true);
 
+outputBox.addEventListener("scroll", () => {
+  autoScrollPinned = isNearBottom();
+}, { passive: true });
+
 const observer = new MutationObserver((mutations) => {
   let childrenChanged = false;
+  let addedMessage = false;
 
   for (const mutation of mutations) {
     if (mutation.type !== "childList") continue;
     childrenChanged = true;
+
     mutation.addedNodes.forEach((node) => {
       if (node instanceof HTMLElement && node.classList.contains("output-entry-shell")) {
+        addedMessage = true;
         scheduleShell(node);
       }
     });
   }
 
-  if (childrenChanged) refreshMessageGroups();
+  if (!childrenChanged) return;
+  pruneMessageHistory();
+  refreshMessageGroups();
+  if (addedMessage) scrollToBottom({ force: true });
 });
 
 observer.observe(outputList, {
   childList: true,
 });
+
+const resizeObserver = new ResizeObserver(() => {
+  scrollToBottom();
+});
+resizeObserver.observe(outputList);
 
 window.__soloAdventuringChat = {
   appendMessage(text, { originator, kind = "creature" }) {
@@ -217,10 +274,15 @@ window.__soloAdventuringChat = {
     return scheduleShell(shell);
   },
   refreshMessageGroups,
+  scrollToBottom() {
+    scrollToBottom({ force: true });
+  },
   waitForPresentation() {
     return presentationTimeline;
   },
 };
 
+pruneMessageHistory();
 refreshMessageGroups();
 scheduleUnseenShells();
+scrollToBottom({ force: true });
