@@ -1,0 +1,109 @@
+:root {
+  --token-enemy: #ff5c73;
+  --chat-player-surface: rgba(103, 217, 255, .055);
+  --chat-other-surface: rgba(245, 246, 250, .026);
+}
+
+/* Slightly smaller, regular console typography. */
+.command-highlight,
+#commandInput {
+  font-size: clamp(.88rem, 1.55vw, 1.04rem);
+  line-height: 1.42;
+}
+
+.output-list {
+  gap: .55rem;
+}
+
+.output-entry-shell {
+  display: flex;
+  width: fit-content;
+  max-width: 82%;
+  flex-direction: column;
+  align-self: flex-start;
+}
+
+.output-entry-shell--player {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+
+.output-entry-shell--system,
+.output-entry-shell--creature {
+  align-self: flex-start;
+  align-items: flex-start;
+}
+
+.message-originator {
+  margin: 0 0 .14rem .28rem;
+  color: rgba(245, 246, 250, .48);
+  font-size: .61rem;
+  line-height: 1;
+  letter-spacing: .095em;
+  text-transform: uppercase;
+}
+
+.output-entry-shell--player .message-originator {
+  margin-right: .28rem;
+  margin-left: 0;
+  color: rgba(103, 217, 255, .68);
+  text-align: right;
+}
+
+.output-entry-shell--creature .message-originator {
+  color: var(--token-enemy);
+  text-shadow: 0 0 7px rgba(255, 92, 115, .18);
+}
+
+.output-entry {
+  width: fit-content;
+  max-width: 100%;
+  padding: .42rem .62rem;
+  border: 1px solid rgba(245, 246, 250, .105);
+  background: var(--chat-other-surface);
+  font-size: clamp(.82rem, 1.45vw, .96rem);
+  line-height: 1.48;
+  letter-spacing: .018em;
+  box-shadow: inset 0 0 12px rgba(255, 255, 255, .012);
+}
+
+.output-entry-shell--player .output-entry {
+  border-color: rgba(103, 217, 255, .2);
+  background: var(--chat-player-surface);
+  text-align: left;
+  box-shadow:
+    1px 0 0 rgba(45, 125, 255, .28),
+    inset 0 0 12px rgba(103, 217, 255, .018);
+}
+
+.output-entry-shell--system .output-entry {
+  border-color: rgba(199, 156, 255, .13);
+}
+
+.output-entry-shell--creature .output-entry {
+  border-color: rgba(255, 92, 115, .16);
+  box-shadow:
+    -1px 0 0 rgba(255, 35, 74, .24),
+    inset 0 0 12px rgba(255, 92, 115, .012);
+}
+
+/* Dice remain ordinary one-line system messages, not a unique card. */
+.output-entry-shell--dice {
+  flex: 0 0 auto;
+}
+
+.output-entry-shell--dice .output-entry {
+  padding-top: .36rem;
+  padding-bottom: .36rem;
+}
+
+.output-placeholder {
+  font-size: clamp(.82rem, 1.45vw, .96rem);
+  line-height: 1.48;
+}
+
+@media (max-width: 640px) {
+  .output-entry-shell {
+    max-width: 90%;
+  }
+}
