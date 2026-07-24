@@ -1,3 +1,5 @@
+import { rollDie } from "./dice.js";
+
 const BATTLE_STATUS = Object.freeze({
   NOT_STARTED: "NOT_STARTED",
   ACTIVE: "ACTIVE",
@@ -76,6 +78,30 @@ function appendBattleLog(battle, type, details = {}) {
   });
 }
 
+function rollInitiativeForParticipants(participants) {
+  return participants
+    .map((participant, originalIndex) => {
+      const roll = rollDie(20);
+      participant.components.Initiative = {
+        roll: roll.raw,
+        modifier: 0,
+        total: roll.total,
+      };
+
+      return {
+        participant,
+        originalIndex,
+        initiative: roll.total,
+      };
+    })
+    .sort((left, right) => {
+      const initiativeDifference = right.initiative - left.initiative;
+      return initiativeDifference !== 0
+        ? initiativeDifference
+        : left.originalIndex - right.originalIndex;
+    });
+}
+
 function beginCurrentTurn(battle) {
   const entityId = getCurrentTurnEntityId(battle);
 
@@ -87,9 +113,7 @@ function beginCurrentTurn(battle) {
   battle.components.TurnState.activeEntityId = entityId;
   battle.components.TurnState.hasActed = false;
 
-  appendBattleLog(battle, "TURN_STARTED", {
-    entityId,
-  });
+  appendBattleLog(battle, "TURN_STARTED", { entityId });
 }
 
 function findNextAbleParticipantIndex(battle, fromIndex) {
@@ -137,10 +161,7 @@ function advanceTurn(battle) {
   const previousIndex = turnOrder.currentIndex;
   const previousEntityId = getCurrentTurnEntityId(battle);
 
-  appendBattleLog(battle, "TURN_ENDED", {
-    entityId: previousEntityId,
-  });
-
+  appendBattleLog(battle, "TURN_ENDED", { entityId: previousEntityId });
   battle.components.TurnState.phase = TURN_PHASE.ENDED;
 
   const outcome = evaluateBattleOutcome(battle);
@@ -173,6 +194,9 @@ function createBattleEntity({ character, enemies }) {
   const player = cloneCreatureDefinition(character, "PLAYER");
   const enemyEntities = enemies.map((enemy) => cloneCreatureDefinition(enemy, "ENEMY"));
   const participants = [player, ...enemyEntities];
+  const initiativeResults = rollInitiativeForParticipants(participants);
+  const orderedParticipants = initiativeResults.map(({ participant }) => participant);
+  const firstParticipant = orderedParticipants[0];
 
   const battle = {
     entityId: createId("battle"),
@@ -188,12 +212,12 @@ function createBattleEntity({ character, enemies }) {
         ENEMY: enemyEntities.map((enemy) => enemy.entityId),
       },
       TurnOrder: {
-        entityIds: participants.map((participant) => participant.entityId),
+        entityIds: orderedParticipants.map((participant) => participant.entityId),
         currentIndex: 0,
       },
       TurnState: {
         turnNumber: 1,
-        activeEntityId: player.entityId,
+        activeEntityId: firstParticipant.entityId,
         phase: TURN_PHASE.READY,
         hasActed: false,
       },
@@ -210,6 +234,21 @@ function createBattleEntity({ character, enemies }) {
             round: 1,
             turnNumber: 1,
             participantIds: participants.map((participant) => participant.entityId),
+          },
+          ...initiativeResults.map(({ participant, initiative }) => ({
+            type: "INITIATIVE_ROLLED",
+            round: 1,
+            turnNumber: 1,
+            entityId: participant.entityId,
+            die: "d20",
+            modifier: 0,
+            total: initiative,
+          })),
+          {
+            type: "INITIATIVE_ORDER_SET",
+            round: 1,
+            turnNumber: 1,
+            entityIds: orderedParticipants.map((participant) => participant.entityId),
           },
           {
             type: "ROUND_STARTED",
@@ -228,6 +267,16 @@ function createBattleEntity({ character, enemies }) {
   return battle;
 }
 
+function describeInitiativeOrder(battle) {
+  return battle.components.TurnOrder.entityIds
+    .map((entityId, index) => {
+      const participant = getParticipant(battle, entityId);
+      const initiative = participant?.components.Initiative?.total ?? "?";
+      return `${index + 1}. ${getParticipantName(battle, entityId)} (${initiative})`;
+    })
+    .join("\n");
+}
+
 function describeBattle(battle) {
   const { components } = battle;
   const currentEntityId = getCurrentTurnEntityId(battle);
@@ -242,6 +291,8 @@ function describeBattle(battle) {
     `Turn: ${components.TurnState.turnNumber}`,
     `Phase: ${components.TurnState.phase}`,
     `Current actor: ${getParticipantName(battle, currentEntityId)} (${currentParticipant?.components.Controller.type ?? "UNKNOWN"})`,
+    "Initiative:",
+    describeInitiativeOrder(battle),
     `Player team: ${playerNames.join(", ")}`,
     `Enemy team: ${enemyNames.join(", ")}`,
   ].join("\n");
@@ -282,6 +333,18 @@ export function createBattleManager() {
     getCurrentActor() {
       if (!activeBattle) return null;
       return getParticipant(activeBattle, getCurrentTurnEntityId(activeBattle));
+    },
+
+    getInitiativeOrder() {
+      if (!activeBattle) return [];
+      return activeBattle.components.TurnOrder.entityIds.map((entityId) => {
+        const participant = getParticipant(activeBattle, entityId);
+        return {
+          entityId,
+          name: participant.components.Identity.name,
+          initiative: participant.components.Initiative.total,
+        };
+      });
     },
 
     hasActiveBattle() {
