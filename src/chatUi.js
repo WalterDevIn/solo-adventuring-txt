@@ -63,7 +63,10 @@ function applyOrigin(shell) {
     label.className = "message-originator";
     shell.prepend(label);
   }
-  label.textContent = origin.name;
+
+  if (label.textContent !== origin.name) {
+    label.textContent = origin.name;
+  }
 }
 
 function processNode(node) {
