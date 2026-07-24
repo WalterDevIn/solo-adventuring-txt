@@ -1,4 +1,10 @@
-import { formatModifier, parseDiceCommand, rollDice, rollDie } from "./dice.js";
+import {
+  DICE_MODIFIER_MODE,
+  formatModifier,
+  parseDiceCommand,
+  rollDice,
+  rollDie,
+} from "./dice.js";
 
 const commandForm = document.querySelector("#commandForm");
 const commandInput = document.querySelector("#commandInput");
@@ -47,10 +53,22 @@ function createLabel(text, className) {
 }
 
 function formatRollDetails(roll) {
-  const rolledValues = roll.count === 1
-    ? `natural ${roll.rolls[0]}`
-    : `rolls [${roll.rolls.join(", ")}] = ${roll.raw}`;
+  if (roll.count === 1) {
+    return roll.modifier === 0
+      ? `natural ${roll.rolls[0]}`
+      : `natural ${roll.rolls[0]}${formatModifier(roll.modifier)}`;
+  }
 
+  if (roll.modifierMode === DICE_MODIFIER_MODE.EACH && roll.modifier !== 0) {
+    return [
+      `rolls [${roll.rolls.join(", ")}]`,
+      `each ${formatModifier(roll.modifier).trim()}`,
+      `adjusted [${roll.adjustedRolls.join(", ")}]`,
+      `total ${roll.total}`,
+    ].join(" · ");
+  }
+
+  const rolledValues = `rolls [${roll.rolls.join(", ")}] = ${roll.raw}`;
   return roll.modifier === 0
     ? rolledValues
     : `${rolledValues}${formatModifier(roll.modifier)}`;
@@ -124,7 +142,13 @@ commandForm.addEventListener("submit", (event) => {
     return;
   }
 
-  const roll = rollDice(parsed.count, parsed.sides, parsed.modifier);
+  const roll = rollDice(
+    parsed.count,
+    parsed.sides,
+    parsed.modifier,
+    Math.random,
+    parsed.modifierMode,
+  );
 
   addDiceOutput(roll);
   playDiceSound(roll.count);
@@ -132,6 +156,7 @@ commandForm.addEventListener("submit", (event) => {
 }, true);
 
 window.__soloAdventuringDice = {
+  DICE_MODIFIER_MODE,
   parseDiceCommand,
   rollDie,
   rollDice,
