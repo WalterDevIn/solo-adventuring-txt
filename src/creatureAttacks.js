@@ -131,6 +131,19 @@ function applyDamage(target, damage) {
   return { applied: damage, invulnerable: false, defeated };
 }
 
+function describeTurnContinuation(turnResult) {
+  if (turnResult?.outcome) return ` Battle result: ${turnResult.outcome}.`;
+
+  const skipped = Array.isArray(turnResult?.skippedMessages)
+    ? turnResult.skippedMessages.map((message) => ` ${message}`).join("")
+    : "";
+  const nextActor = getCurrentActor();
+  const nextText = nextActor
+    ? ` It is now ${nextActor.components.Identity.name}'s turn.`
+    : "";
+  return `${skipped}${nextText}`;
+}
+
 async function executeCreatureAttack(actor, attack, target) {
   const manager = window.__soloAdventuringDebug.battleManager;
   const actorName = actor.components.Identity.name;
@@ -151,7 +164,10 @@ async function executeCreatureAttack(actor, attack, target) {
   if (!hit) {
     await waitForDiceTimeline();
     const turnResult = manager.passCurrentTurn();
-    await say(`${actorName} misses ${targetName} with ${attack.name}. ${turnResult.message}`);
+    await say(
+      `${actorName} misses ${targetName} with ${attack.name}.`
+      + describeTurnContinuation(turnResult),
+    );
     return;
   }
 
@@ -165,9 +181,13 @@ async function executeCreatureAttack(actor, attack, target) {
 
   const damageResult = applyDamage(target, damageRoll.total);
   const turnResult = manager.passCurrentTurn();
+  const continuation = describeTurnContinuation(turnResult);
 
   if (damageResult.invulnerable) {
-    await say(`${actorName} hits ${targetName} with ${attack.name}, but ${targetName} is invulnerable and takes no damage. ${turnResult.message}`);
+    await say(
+      `${actorName} hits ${targetName} with ${attack.name}, but ${targetName} is invulnerable and takes no damage.`
+      + continuation,
+    );
     return;
   }
 
@@ -176,7 +196,7 @@ async function executeCreatureAttack(actor, attack, target) {
     `${actorName} hits ${targetName} with ${attack.name} for ${damageResult.applied} ${attack.damage.type} damage. `
     + `${targetName} has ${target.components.Health.current} HP remaining.`
     + defeatedText
-    + ` ${turnResult.message}`,
+    + continuation,
   );
 }
 
