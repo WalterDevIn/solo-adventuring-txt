@@ -53,6 +53,7 @@ const selection = {
 
 const PLACEHOLDER_INTERVAL = 420;
 const KEY_PRESS_AUDIO_PATH = "assets/audio/key-press.mp3";
+const INITIATIVE_AUDIO_PATH = "assets/audio/dices.mp3";
 
 const typingQueue = [];
 const outputKeySound = createAudioPool({
@@ -69,6 +70,10 @@ const inputKeySound = createAudioPool({
   minPlaybackRate: 0.9,
   maxPlaybackRate: 1.1,
 });
+const initiativeSound = new Audio(INITIATIVE_AUDIO_PATH);
+initiativeSound.preload = "auto";
+initiativeSound.load();
+
 const gameEngine = createGameEngine("CITY");
 const battleManager = createBattleManager();
 
@@ -259,6 +264,13 @@ function processCommand(command) {
   addOutput(result.message);
 }
 
+function playInitiativeSound() {
+  initiativeSound.pause();
+  initiativeSound.currentTime = 0;
+  initiativeSound.volume = 0.72;
+  initiativeSound.play().catch(() => {});
+}
+
 function startCombatPrototype() {
   const character = CHARACTERS.find((entry) => entry.id === selection.characterId);
   const enemies = ENEMIES.filter((entry) => selection.enemyIds.has(entry.id));
@@ -266,11 +278,17 @@ function startCombatPrototype() {
 
   const battle = battleManager.createBattle({ character, enemies });
   const currentActor = battleManager.getCurrentActor();
+  const initiativeOrder = battleManager.getInitiativeOrder();
+  const initiativeSummary = initiativeOrder
+    .map((entry, index) => `${index + 1}. ${entry.name}: ${entry.initiative}`)
+    .join("\n");
 
   setupScreen.hidden = true;
   consoleScreen.hidden = false;
+  playInitiativeSound();
   addOutput(
     `Battle created. ${character.name} faces ${enemies.map((enemy) => enemy.name).join(" and ")}.\n` +
+    `Initiative rolls:\n${initiativeSummary}\n` +
     `Round 1 begins. It is ${currentActor.components.Identity.name}'s turn.\n` +
     `Entity: ${battle.entityId}\nType "pass" to advance the mechanical turn cycle.`,
   );
@@ -320,4 +338,5 @@ window.__soloAdventuringDebug = {
   battleManager,
   getActiveBattle: () => battleManager.getActiveBattle(),
   getCurrentActor: () => battleManager.getCurrentActor(),
+  getInitiativeOrder: () => battleManager.getInitiativeOrder(),
 };
