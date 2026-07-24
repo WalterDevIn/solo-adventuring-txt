@@ -52,11 +52,10 @@ function getParticipant(battle, entityId) {
 
 function isParticipantAbleToAct(battle, entityId) {
   const participant = getParticipant(battle, entityId);
-
   return Boolean(
-    participant &&
-    !participant.components.CombatState.defeated &&
-    participant.components.Health.current > 0,
+    participant
+    && !participant.components.CombatState.defeated
+    && participant.components.Health.current > 0,
   );
 }
 
@@ -87,47 +86,30 @@ function rollInitiativeForParticipants(participants) {
         modifier: 0,
         total: roll.total,
       };
-
-      return {
-        participant,
-        originalIndex,
-        initiative: roll.total,
-      };
+      return { participant, originalIndex, initiative: roll.total };
     })
     .sort((left, right) => {
-      const initiativeDifference = right.initiative - left.initiative;
-      return initiativeDifference !== 0
-        ? initiativeDifference
-        : left.originalIndex - right.originalIndex;
+      const difference = right.initiative - left.initiative;
+      return difference !== 0 ? difference : left.originalIndex - right.originalIndex;
     });
 }
 
 function beginCurrentTurn(battle) {
   const entityId = getCurrentTurnEntityId(battle);
-
-  if (!entityId) {
-    throw new Error("The battle has no current participant.");
-  }
+  if (!entityId) throw new Error("The battle has no current participant.");
 
   battle.components.TurnState.phase = TURN_PHASE.ACTING;
   battle.components.TurnState.activeEntityId = entityId;
   battle.components.TurnState.hasActed = false;
-
   appendBattleLog(battle, "TURN_STARTED", { entityId });
 }
 
 function findNextAbleParticipantIndex(battle, fromIndex) {
   const order = battle.components.TurnOrder.entityIds;
-
   for (let offset = 1; offset <= order.length; offset += 1) {
     const candidateIndex = (fromIndex + offset) % order.length;
-    const candidateId = order[candidateIndex];
-
-    if (isParticipantAbleToAct(battle, candidateId)) {
-      return candidateIndex;
-    }
+    if (isParticipantAbleToAct(battle, order[candidateIndex])) return candidateIndex;
   }
-
   return -1;
 }
 
@@ -165,28 +147,20 @@ function advanceTurn(battle) {
   battle.components.TurnState.phase = TURN_PHASE.ENDED;
 
   const outcome = evaluateBattleOutcome(battle);
-  if (outcome) {
-    return { outcome, roundAdvanced: false };
-  }
+  if (outcome) return { outcome, roundAdvanced: false };
 
   const nextIndex = findNextAbleParticipantIndex(battle, previousIndex);
-  if (nextIndex === -1) {
-    throw new Error("No participant is able to take the next turn.");
-  }
+  if (nextIndex === -1) throw new Error("No participant is able to take the next turn.");
 
   const roundAdvanced = nextIndex <= previousIndex;
-
   if (roundAdvanced) {
     battle.components.Round.value += 1;
-    appendBattleLog(battle, "ROUND_STARTED", {
-      round: battle.components.Round.value,
-    });
+    appendBattleLog(battle, "ROUND_STARTED", { round: battle.components.Round.value });
   }
 
   turnOrder.currentIndex = nextIndex;
   battle.components.TurnState.turnNumber += 1;
   beginCurrentTurn(battle);
-
   return { outcome: null, roundAdvanced };
 }
 
@@ -201,9 +175,7 @@ function createBattleEntity({ character, enemies }) {
   const battle = {
     entityId: createId("battle"),
     components: {
-      BattleStatus: {
-        value: BATTLE_STATUS.ACTIVE,
-      },
+      BattleStatus: { value: BATTLE_STATUS.ACTIVE },
       BattleParticipants: {
         entityIds: participants.map((participant) => participant.entityId),
       },
@@ -221,12 +193,8 @@ function createBattleEntity({ character, enemies }) {
         phase: TURN_PHASE.READY,
         hasActed: false,
       },
-      Round: {
-        value: 1,
-      },
-      ViewState: {
-        playerPresent: true,
-      },
+      Round: { value: 1 },
+      ViewState: { playerPresent: true },
       BattleLog: {
         entries: [
           {
@@ -250,11 +218,7 @@ function createBattleEntity({ character, enemies }) {
             turnNumber: 1,
             entityIds: orderedParticipants.map((participant) => participant.entityId),
           },
-          {
-            type: "ROUND_STARTED",
-            round: 1,
-            turnNumber: 1,
-          },
+          { type: "ROUND_STARTED", round: 1, turnNumber: 1 },
         ],
       },
     },
@@ -298,30 +262,45 @@ function describeBattle(battle) {
   ].join("\n");
 }
 
+function normalizeName(value) {
+  return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function findEnemyTarget(battle, targetName) {
+  const normalizedTarget = normalizeName(targetName);
+  if (!normalizedTarget) return null;
+
+  const livingEnemies = getLivingTeamMembers(battle, "ENEMY")
+    .map((entityId) => getParticipant(battle, entityId));
+
+  return livingEnemies.find((enemy) => {
+    const name = normalizeName(enemy.components.Identity.name);
+    const definition = normalizeName(enemy.definitionId);
+    return name === normalizedTarget
+      || definition === normalizedTarget
+      || name.includes(normalizedTarget)
+      || normalizedTarget.includes(name)
+      || definition.includes(normalizedTarget);
+  }) ?? null;
+}
+
 export function createBattleManager() {
   let activeBattle = null;
 
   function requireActiveBattle() {
-    if (!activeBattle) {
-      return { ok: false, message: "There is no active battle." };
-    }
-
+    if (!activeBattle) return { ok: false, message: "There is no active battle." };
     if (activeBattle.components.BattleStatus.value !== BATTLE_STATUS.ACTIVE) {
       return {
         ok: false,
         message: `The battle is ${activeBattle.components.BattleStatus.value.toLowerCase()}.`,
       };
     }
-
     return { ok: true, battle: activeBattle };
   }
 
   return {
     createBattle(configuration) {
-      if (activeBattle) {
-        throw new Error("An active battle already exists.");
-      }
-
+      if (activeBattle) throw new Error("An active battle already exists.");
       activeBattle = createBattleEntity(configuration);
       return activeBattle;
     },
@@ -355,6 +334,101 @@ export function createBattleManager() {
       return activeBattle ? describeBattle(activeBattle) : "There is no active battle.";
     },
 
+    performUnarmedAttack(targetName) {
+      const activeResult = requireActiveBattle();
+      if (!activeResult.ok) return activeResult;
+
+      const battle = activeResult.battle;
+      const attackerId = getCurrentTurnEntityId(battle);
+      const attacker = getParticipant(battle, attackerId);
+      const attackerName = getParticipantName(battle, attackerId);
+
+      if (attacker.components.Controller.type !== "PLAYER") {
+        return { ok: false, message: `It is ${attackerName}'s turn.` };
+      }
+
+      if (battle.components.TurnState.hasActed) {
+        return { ok: false, message: `${attackerName} has already acted this turn.` };
+      }
+
+      const target = findEnemyTarget(battle, targetName);
+      if (!target) {
+        const options = getLivingTeamMembers(battle, "ENEMY")
+          .map((entityId) => getParticipantName(battle, entityId))
+          .join(", ");
+        return { ok: false, message: `Choose a living target: ${options}.` };
+      }
+
+      const attackRoll = rollDie(20);
+      const armorClass = target.components.ArmorClass.value;
+      const hit = attackRoll.total >= armorClass;
+      let damageRoll = null;
+      let damage = 0;
+      let defeated = false;
+
+      appendBattleLog(battle, "ATTACK_ROLLED", {
+        attackerId,
+        targetId: target.entityId,
+        attackType: "UNARMED",
+        die: "d20",
+        modifier: 0,
+        total: attackRoll.total,
+        armorClass,
+        hit,
+      });
+
+      if (hit) {
+        damageRoll = rollDie(4);
+        damage = damageRoll.total;
+        target.components.Health.current = Math.max(
+          0,
+          target.components.Health.current - damage,
+        );
+        defeated = target.components.Health.current === 0;
+        target.components.CombatState.defeated = defeated;
+
+        appendBattleLog(battle, "DAMAGE_ROLLED", {
+          attackerId,
+          targetId: target.entityId,
+          damageType: "BLUDGEONING",
+          die: "d4",
+          modifier: 0,
+          total: damage,
+        });
+        appendBattleLog(battle, "DAMAGE_APPLIED", {
+          attackerId,
+          targetId: target.entityId,
+          amount: damage,
+          remainingHealth: target.components.Health.current,
+          defeated,
+        });
+      }
+
+      battle.components.TurnState.hasActed = true;
+      const targetNameResolved = target.components.Identity.name;
+      const targetHealth = target.components.Health.current;
+      const { outcome, roundAdvanced } = advanceTurn(battle);
+      const nextActor = outcome ? null : this.getCurrentActor();
+
+      return {
+        ok: true,
+        attackerId,
+        attackerName,
+        targetId: target.entityId,
+        targetName: targetNameResolved,
+        targetArmorClass: armorClass,
+        attackRoll,
+        hit,
+        damageRoll,
+        damage,
+        targetHealth,
+        defeated,
+        outcome,
+        roundAdvanced,
+        nextActorName: nextActor?.components.Identity.name ?? null,
+      };
+    },
+
     passCurrentTurn() {
       const activeResult = requireActiveBattle();
       if (!activeResult.ok) return activeResult;
@@ -369,7 +443,6 @@ export function createBattleManager() {
 
       battle.components.TurnState.hasActed = true;
       appendBattleLog(battle, "ACTION_PASSED", { entityId: actorId });
-
       const { outcome, roundAdvanced } = advanceTurn(battle);
 
       if (outcome) {
@@ -395,24 +468,16 @@ export function createBattleManager() {
     },
 
     leaveBattleView() {
-      if (!activeBattle) {
-        return { ok: false, message: "There is no active battle to leave." };
-      }
-
+      if (!activeBattle) return { ok: false, message: "There is no active battle to leave." };
       activeBattle.components.ViewState.playerPresent = false;
       appendBattleLog(activeBattle, "BATTLE_VIEW_LEFT");
-
       return { ok: true, message: "You leave the battle view. The battle remains active." };
     },
 
     enterBattleView() {
-      if (!activeBattle) {
-        return { ok: false, message: "There is no active battle to enter." };
-      }
-
+      if (!activeBattle) return { ok: false, message: "There is no active battle to enter." };
       activeBattle.components.ViewState.playerPresent = true;
       appendBattleLog(activeBattle, "BATTLE_VIEW_ENTERED");
-
       return { ok: true, message: describeBattle(activeBattle) };
     },
 
