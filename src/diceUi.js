@@ -14,7 +14,9 @@ const outputPlaceholder = document.querySelector("#outputPlaceholder");
 const SINGLE_DIE_AUDIO_PATH = "assets/audio/dice.mp3";
 const MULTIPLE_DICE_AUDIO_PATH = "assets/audio/dices.mp3";
 const DICE_VOLUME = 0.72;
-export const MIN_DIE_INTERVAL_MS = 1000;
+export const MIN_ROLL_INTERVAL_MS = 1000;
+// Kept as a compatibility alias for existing debug consumers.
+export const MIN_DIE_INTERVAL_MS = MIN_ROLL_INTERVAL_MS;
 
 const singleDieSound = new Audio(SINGLE_DIE_AUDIO_PATH);
 const multipleDiceSound = new Audio(MULTIPLE_DICE_AUDIO_PATH);
@@ -25,7 +27,8 @@ for (const sound of [singleDieSound, multipleDiceSound]) {
 }
 
 let diceTimeline = Promise.resolve();
-let lastDieTimestamp = 0;
+let lastRollTimestamp = 0;
+let initiativeBatchOpen = false;
 
 function wait(milliseconds) {
   return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
@@ -41,25 +44,29 @@ export function playDiceSound(count) {
   });
 }
 
-async function waitForNextDie() {
-  const elapsed = performance.now() - lastDieTimestamp;
-  if (lastDieTimestamp > 0 && elapsed < MIN_DIE_INTERVAL_MS) {
-    await wait(MIN_DIE_INTERVAL_MS - elapsed);
+async function waitForNextRoll() {
+  const elapsed = performance.now() - lastRollTimestamp;
+  if (lastRollTimestamp > 0 && elapsed < MIN_ROLL_INTERVAL_MS) {
+    await wait(MIN_ROLL_INTERVAL_MS - elapsed);
   }
 }
 
-async function performPhysicalRoll(count, counterDice) {
-  if (counterDice) {
-    playDiceSound(count);
-    lastDieTimestamp = performance.now();
-    return;
-  }
+async function performRoll(count) {
+  await waitForNextRoll();
+  playDiceSound(count);
+  lastRollTimestamp = performance.now();
+}
 
-  for (let index = 0; index < count; index += 1) {
-    await waitForNextDie();
-    playDiceSound(1);
-    lastDieTimestamp = performance.now();
-  }
+function beginInitiativeBatch() {
+  if (initiativeBatchOpen) return;
+
+  initiativeBatchOpen = true;
+  playDiceSound(2);
+  lastRollTimestamp = performance.now();
+
+  window.setTimeout(() => {
+    initiativeBatchOpen = false;
+  }, 0);
 }
 
 function removeOverflowingEntries(protectedShell) {
@@ -162,13 +169,22 @@ export function addDiceOutput(
 ) {
   const metadata = resolveMetadata(actor, purpose);
   const shouldConceal = concealPrivateValues ?? isAiActor(metadata.actor);
+  const isInitiativeRoll = metadata.purpose === "Initiative";
+
+  // Initiative is the one built-in simultaneous exception: every participant
+  // rolls together at combat start. Counter dice can opt into the same timing.
+  if (isInitiativeRoll || counterDice) {
+    if (playSound) beginInitiativeBatch();
+    return Promise.resolve(renderDiceOutput(roll, metadata, shouldConceal));
+  }
 
   const task = async () => {
     if (playSound) {
-      await performPhysicalRoll(roll.count, counterDice);
-    } else if (!counterDice) {
-      await waitForNextDie();
-      lastDieTimestamp = performance.now();
+      // A roll such as 5d6 is one physical event: all five dice are thrown together.
+      await performRoll(roll.count);
+    } else {
+      await waitForNextRoll();
+      lastRollTimestamp = performance.now();
     }
 
     return renderDiceOutput(roll, metadata, shouldConceal);
@@ -235,6 +251,7 @@ commandForm.addEventListener("submit", (event) => {
 window.__soloAdventuringDice = {
   DICE_MODIFIER_MODE,
   MIN_DIE_INTERVAL_MS,
+  MIN_ROLL_INTERVAL_MS,
   parseDiceCommand,
   rollDie,
   rollDice,
