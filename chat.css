@@ -1,10 +1,10 @@
 :root {
   --token-enemy: #ff5c73;
+  --token-dice: #c79cff;
   --chat-player-surface: rgba(103, 217, 255, .055);
   --chat-other-surface: rgba(245, 246, 250, .026);
 }
 
-/* Slightly smaller, regular console typography. */
 .command-highlight,
 #commandInput {
   font-size: clamp(.88rem, 1.55vw, 1.04rem);
@@ -28,7 +28,8 @@
   align-items: flex-end;
 }
 
-.output-entry-shell--system,
+.output-entry-shell--dm,
+.output-entry-shell--dice,
 .output-entry-shell--creature {
   align-self: flex-start;
   align-items: flex-start;
@@ -50,9 +51,22 @@
   text-align: right;
 }
 
+.output-entry-shell--dice .message-originator {
+  color: var(--token-dice);
+  text-shadow: 0 0 7px rgba(199, 156, 255, .2);
+}
+
 .output-entry-shell--creature .message-originator {
   color: var(--token-enemy);
   text-shadow: 0 0 7px rgba(255, 92, 115, .18);
+}
+
+.output-entry-shell--grouped {
+  margin-top: -.34rem;
+}
+
+.output-entry-shell--grouped .message-originator {
+  display: none;
 }
 
 .output-entry {
@@ -76,8 +90,14 @@
     inset 0 0 12px rgba(103, 217, 255, .018);
 }
 
-.output-entry-shell--system .output-entry {
-  border-color: rgba(199, 156, 255, .13);
+.output-entry-shell--dm .output-entry {
+  border-color: rgba(245, 246, 250, .105);
+}
+
+.output-entry-shell--dice .output-entry {
+  border-color: rgba(199, 156, 255, .16);
+  color: var(--token-dice);
+  text-shadow: 0 0 6px rgba(199, 156, 255, .14);
 }
 
 .output-entry-shell--creature .output-entry {
@@ -87,7 +107,6 @@
     inset 0 0 12px rgba(255, 92, 115, .012);
 }
 
-/* Dice remain ordinary one-line system messages, not a unique card. */
 .output-entry-shell--dice {
   flex: 0 0 auto;
 }
