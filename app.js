@@ -173,6 +173,17 @@ function removeOldestOverflowingEntries(protectedShell = null) {
   updateEmptyState();
 }
 
+async function waitForMessageEntrance(shell) {
+  const chat = window.__soloAdventuringChat;
+  if (chat?.waitForEntrance) {
+    await chat.waitForEntrance(shell);
+    return;
+  }
+
+  await new Promise((resolve) => requestAnimationFrame(resolve));
+  await window.__soloAdventuringChat?.waitForEntrance?.(shell);
+}
+
 async function typeEntry(shell, entry, text) {
   entry.classList.add("is-typing");
   let visibleText = "";
@@ -194,8 +205,16 @@ async function processTypingQueue() {
   isTyping = true;
 
   while (typingQueue.length > 0) {
-    const { shell, entry, text } = typingQueue.shift();
-    if (shell.isConnected) await typeEntry(shell, entry, text);
+    const { shell, entry, text, resolve } = typingQueue.shift();
+
+    try {
+      if (shell.isConnected) {
+        await waitForMessageEntrance(shell);
+        await typeEntry(shell, entry, text);
+      }
+    } finally {
+      resolve(shell);
+    }
   }
 
   isTyping = false;
@@ -205,13 +224,20 @@ function addOutput(text) {
   outputPlaceholder.hidden = true;
   const shell = document.createElement("div");
   shell.className = "output-entry-shell";
+  shell.dataset.originator = "Dungeon Master";
+  shell.dataset.originKind = "dm";
+
   const entry = document.createElement("p");
   entry.className = "output-entry";
   shell.append(entry);
   outputList.append(shell);
   removeOldestOverflowingEntries(shell);
-  typingQueue.push({ shell, entry, text });
+
+  const completion = new Promise((resolve) => {
+    typingQueue.push({ shell, entry, text, resolve });
+  });
   processTypingQueue();
+  return completion;
 }
 
 function normalizeBattleCommand(command) {
@@ -252,6 +278,8 @@ function describeAttackResult(result) {
 }
 
 async function renderUnarmedAttack(result) {
+  await addOutput(`You try to attack ${result.targetName}.`);
+
   await addDiceOutput(result.attackRoll, {
     actor: result.attackerName,
     purpose: "Unarmed attack",
@@ -265,7 +293,7 @@ async function renderUnarmedAttack(result) {
   }
 
   await waitForDiceTimeline();
-  addOutput(describeAttackResult(result));
+  await addOutput(describeAttackResult(result));
 }
 
 function processBattleCommand(command) {
@@ -305,14 +333,14 @@ async function processCommand(command) {
   if (battleResult.handled) {
     if (battleResult.kind === "UNARMED_ATTACK") {
       if (!battleResult.result.ok) {
-        addOutput(battleResult.result.message);
+        await addOutput(battleResult.result.message);
       } else {
         await renderUnarmedAttack(battleResult.result);
       }
       return;
     }
 
-    addOutput(battleResult.message);
+    await addOutput(battleResult.message);
     return;
   }
 
@@ -320,7 +348,7 @@ async function processCommand(command) {
   const result = gameEngine.processIntent(intent);
   console.debug("Command intent", intent);
   console.debug("Game result", result);
-  addOutput(result.message);
+  await addOutput(result.message);
 }
 
 function createInitiativeRoll(participant) {
@@ -341,13 +369,17 @@ function createInitiativeRoll(participant) {
 }
 
 async function renderInitiativeRolls(battle) {
+  const rolls = [];
+
   for (const entityId of battle.components.BattleParticipants.entityIds) {
     const participant = battle.entities[entityId];
-    await addDiceOutput(createInitiativeRoll(participant), {
+    rolls.push(addDiceOutput(createInitiativeRoll(participant), {
       actor: participant.components.Identity.name,
       purpose: "Initiative",
-    });
+    }));
   }
+
+  await Promise.all(rolls);
 }
 
 async function startCombatPrototype() {
@@ -355,29 +387,39 @@ async function startCombatPrototype() {
   const enemies = ENEMIES.filter((entry) => selection.enemyIds.has(entry.id));
   if (!character || enemies.length === 0 || battleManager.hasActiveBattle()) return;
 
-  const battle = battleManager.createBattle({ character, enemies });
-  const currentActor = battleManager.getCurrentActor();
-  const initiativeOrder = battleManager.getInitiativeOrder();
-  const orderSummary = initiativeOrder
-    .map((entry, index) => `${index + 1}. ${entry.name}`)
-    .join(" · ");
-
-  setupScreen.hidden = true;
-  consoleScreen.hidden = false;
   commandInput.disabled = true;
+  startBattleButton.disabled = true;
   isResolvingAction = true;
 
-  await renderInitiativeRolls(battle);
-  await waitForDiceTimeline();
-  addOutput(
-    `Initiative order: ${orderSummary}.\n`
-    + `Round 1 begins. It is ${currentActor.components.Identity.name}'s turn.\n`
-    + `Use "attack slime", "punch rat", or "pass".`,
-  );
+  try {
+    const battle = battleManager.createBattle({ character, enemies });
+    const currentActor = battleManager.getCurrentActor();
+    const initiativeOrder = battleManager.getInitiativeOrder();
+    const orderSummary = initiativeOrder
+      .map((entry, index) => `${index + 1}. ${entry.name}`)
+      .join(" · ");
 
-  isResolvingAction = false;
-  commandInput.disabled = false;
-  commandInput.focus();
+    setupScreen.hidden = true;
+    consoleScreen.hidden = false;
+
+    await renderInitiativeRolls(battle);
+    await waitForDiceTimeline();
+    await addOutput(
+      `Initiative order: ${orderSummary}.\n`
+      + `Round 1 begins. It is ${currentActor.components.Identity.name}'s turn.\n`
+      + `Use "attack slime", "punch rat", or "pass".`,
+    );
+  } catch (error) {
+    console.error("Failed to start combat", error);
+    setupScreen.hidden = false;
+    consoleScreen.hidden = true;
+    battleManager.clearBattle();
+    renderSelections();
+  } finally {
+    isResolvingAction = false;
+    commandInput.disabled = false;
+    commandInput.focus();
+  }
 }
 
 window.setInterval(() => {
