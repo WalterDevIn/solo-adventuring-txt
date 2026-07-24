@@ -1,5 +1,6 @@
 import { parseIntent } from "./src/intentParser.js";
 import { createGameEngine } from "./src/gameEngine.js";
+import { createBattleManager } from "./src/battleManager.js";
 import { highlightText } from "./src/textHighlighter.js";
 
 const setupScreen = document.querySelector("#setupScreen");
@@ -58,6 +59,7 @@ const KEY_PRESS_VOLUME = 0.28;
 const typingQueue = [];
 const keyPressSound = new Audio(KEY_PRESS_AUDIO_PATH);
 const gameEngine = createGameEngine("CITY");
+const battleManager = createBattleManager();
 keyPressSound.preload = "auto";
 
 let isTyping = false;
@@ -122,11 +124,13 @@ function renderSelections() {
 
   const character = CHARACTERS.find((entry) => entry.id === selection.characterId);
   const enemies = ENEMIES.filter((entry) => selection.enemyIds.has(entry.id));
-  const valid = Boolean(character && enemies.length > 0);
+  const valid = Boolean(character && enemies.length > 0 && !battleManager.hasActiveBattle());
 
-  encounterSummary.textContent = valid
-    ? `${character.name} // ${enemies.map((enemy) => enemy.name).join(" + ")}`
-    : "Select at least one enemy.";
+  encounterSummary.textContent = battleManager.hasActiveBattle()
+    ? "An active battle already exists."
+    : valid
+      ? `${character.name} // ${enemies.map((enemy) => enemy.name).join(" + ")}`
+      : "Select at least one enemy.";
   startBattleButton.disabled = !valid;
 }
 
@@ -205,7 +209,38 @@ function addOutput(text) {
   processTypingQueue();
 }
 
+function normalizeBattleCommand(command) {
+  return command.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function processBattleCommand(command) {
+  const normalized = normalizeBattleCommand(command);
+
+  if (["battle", "battle status", "status", "list battle"].includes(normalized)) {
+    return { handled: true, message: battleManager.describeActiveBattle() };
+  }
+
+  if (["leave battle", "leave combat", "exit battle view"].includes(normalized)) {
+    const result = battleManager.leaveBattleView();
+    return { handled: true, message: result.message };
+  }
+
+  if (["enter battle", "enter combat", "return to battle"].includes(normalized)) {
+    const result = battleManager.enterBattleView();
+    return { handled: true, message: result.message };
+  }
+
+  return { handled: false, message: "" };
+}
+
 function processCommand(command) {
+  const battleResult = processBattleCommand(command);
+
+  if (battleResult.handled) {
+    addOutput(battleResult.message);
+    return;
+  }
+
   const intent = parseIntent(command);
   const result = gameEngine.processIntent(intent);
   console.debug("Command intent", intent);
@@ -216,11 +251,16 @@ function processCommand(command) {
 function startCombatPrototype() {
   const character = CHARACTERS.find((entry) => entry.id === selection.characterId);
   const enemies = ENEMIES.filter((entry) => selection.enemyIds.has(entry.id));
-  if (!character || enemies.length === 0) return;
+  if (!character || enemies.length === 0 || battleManager.hasActiveBattle()) return;
+
+  const battle = battleManager.createBattle({ character, enemies });
 
   setupScreen.hidden = true;
   consoleScreen.hidden = false;
-  addOutput(`Combat configured. ${character.name} faces ${enemies.map((enemy) => enemy.name).join(" and ")}.`);
+  addOutput(
+    `Battle created. ${character.name} faces ${enemies.map((enemy) => enemy.name).join(" and ")}.\n` +
+    `Entity: ${battle.entityId}\nType "battle status" to inspect it.`,
+  );
   commandInput.focus();
 }
 
@@ -257,3 +297,8 @@ window.addEventListener("load", () => {
   updateEmptyState();
   updateInputHighlight();
 });
+
+window.__soloAdventuringDebug = {
+  battleManager,
+  getActiveBattle: () => battleManager.getActiveBattle(),
+};
