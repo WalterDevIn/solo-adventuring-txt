@@ -68,13 +68,10 @@ function findCreature(battle, rawName, { defeatedOnly = false } = {}) {
   }) ?? null;
 }
 
-function currentEntityId(battle) {
-  const order = battle.components.TurnOrder;
-  return order.entityIds[order.currentIndex] ?? null;
-}
-
 function isTurnSuppressed(battle, entity) {
   if (!entity) return false;
+  if (entity.components.CombatState.defeated || entity.components.Health.current <= 0) return true;
+
   const admin = ensureAdminState(entity);
   if (admin.frozen) return true;
 
@@ -100,7 +97,9 @@ async function normalizeTurnFlow() {
     if (!actor || !isTurnSuppressed(battle, actor)) return;
 
     const admin = ensureAdminState(actor);
-    if (admin.frozen) {
+    if (actor.components.CombatState.defeated || actor.components.Health.current <= 0) {
+      await say(`${actor.components.Identity.name} is defeated and cannot take its turn.`);
+    } else if (admin.frozen) {
       await say(`${actor.components.Identity.name} is suspended and loses its turn.`);
     } else {
       await say(`Time is stopped for ${actor.components.Identity.name}. Its turn is skipped.`);
@@ -125,7 +124,24 @@ function installTurnGuards() {
   };
 
   manager.performUnarmedAttack = (...args) => {
+    const battle = getBattle();
+    const target = battle ? findCreature(battle, String(args[0] ?? "")) : null;
+    const targetAdmin = target ? ensureAdminState(target) : null;
+    const previousHealth = target?.components.Health.current ?? null;
+    const previousDefeated = target?.components.CombatState.defeated ?? false;
+
     const result = manager.__adminOriginalAttack(...args);
+
+    if (result.ok && target && targetAdmin?.invulnerable) {
+      target.components.Health.current = previousHealth;
+      target.components.CombatState.defeated = previousDefeated;
+      result.damage = 0;
+      result.targetHealth = previousHealth;
+      result.defeated = previousDefeated;
+      result.outcome = null;
+      result.invulnerable = true;
+    }
+
     queueMicrotask(() => normalizeTurnFlow());
     return result;
   };
