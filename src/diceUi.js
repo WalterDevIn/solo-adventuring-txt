@@ -14,6 +14,7 @@ const outputPlaceholder = document.querySelector("#outputPlaceholder");
 const SINGLE_DIE_AUDIO_PATH = "assets/audio/dice.mp3";
 const MULTIPLE_DICE_AUDIO_PATH = "assets/audio/dices.mp3";
 const DICE_VOLUME = 0.72;
+export const MIN_DIE_INTERVAL_MS = 1000;
 
 const singleDieSound = new Audio(SINGLE_DIE_AUDIO_PATH);
 const multipleDiceSound = new Audio(MULTIPLE_DICE_AUDIO_PATH);
@@ -21,6 +22,13 @@ const multipleDiceSound = new Audio(MULTIPLE_DICE_AUDIO_PATH);
 for (const sound of [singleDieSound, multipleDiceSound]) {
   sound.preload = "auto";
   sound.load();
+}
+
+let diceTimeline = Promise.resolve();
+let lastDieTimestamp = 0;
+
+function wait(milliseconds) {
+  return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 }
 
 export function playDiceSound(count) {
@@ -31,6 +39,27 @@ export function playDiceSound(count) {
   sound.play().catch(() => {
     // Browsers may block audio until the user has interacted with the page.
   });
+}
+
+async function waitForNextDie() {
+  const elapsed = performance.now() - lastDieTimestamp;
+  if (lastDieTimestamp > 0 && elapsed < MIN_DIE_INTERVAL_MS) {
+    await wait(MIN_DIE_INTERVAL_MS - elapsed);
+  }
+}
+
+async function performPhysicalRoll(count, counterDice) {
+  if (counterDice) {
+    playDiceSound(count);
+    lastDieTimestamp = performance.now();
+    return;
+  }
+
+  for (let index = 0; index < count; index += 1) {
+    await waitForNextDie();
+    playDiceSound(1);
+    lastDieTimestamp = performance.now();
+  }
 }
 
 function removeOverflowingEntries(protectedShell) {
@@ -93,19 +122,8 @@ function isAiActor(actor) {
   );
 }
 
-export function addDiceOutput(
-  roll,
-  {
-    actor = null,
-    purpose = null,
-    playSound = true,
-    concealPrivateValues = null,
-  } = {},
-) {
+function renderDiceOutput(roll, metadata, shouldConceal) {
   outputPlaceholder.hidden = true;
-
-  const metadata = resolveMetadata(actor, purpose);
-  const shouldConceal = concealPrivateValues ?? isAiActor(metadata.actor);
 
   const shell = document.createElement("div");
   shell.className = "output-entry-shell output-entry-shell--dice";
@@ -129,9 +147,40 @@ export function addDiceOutput(
   shell.append(entry);
   outputList.append(shell);
   removeOverflowingEntries(shell);
-
-  if (playSound) playDiceSound(roll.count);
   return shell;
+}
+
+export function addDiceOutput(
+  roll,
+  {
+    actor = null,
+    purpose = null,
+    playSound = true,
+    concealPrivateValues = null,
+    counterDice = false,
+  } = {},
+) {
+  const metadata = resolveMetadata(actor, purpose);
+  const shouldConceal = concealPrivateValues ?? isAiActor(metadata.actor);
+
+  const task = async () => {
+    if (playSound) {
+      await performPhysicalRoll(roll.count, counterDice);
+    } else if (!counterDice) {
+      await waitForNextDie();
+      lastDieTimestamp = performance.now();
+    }
+
+    return renderDiceOutput(roll, metadata, shouldConceal);
+  };
+
+  const scheduled = diceTimeline.then(task, task);
+  diceTimeline = scheduled.then(() => undefined, () => undefined);
+  return scheduled;
+}
+
+export function waitForDiceTimeline() {
+  return diceTimeline;
 }
 
 function addDiceError(message) {
@@ -185,9 +234,11 @@ commandForm.addEventListener("submit", (event) => {
 
 window.__soloAdventuringDice = {
   DICE_MODIFIER_MODE,
+  MIN_DIE_INTERVAL_MS,
   parseDiceCommand,
   rollDie,
   rollDice,
   addDiceOutput,
+  waitForDiceTimeline,
   playDiceSound,
 };
