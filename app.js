@@ -216,8 +216,13 @@ function normalizeBattleCommand(command) {
 function processBattleCommand(command) {
   const normalized = normalizeBattleCommand(command);
 
-  if (["battle", "battle status", "status", "list battle"].includes(normalized)) {
+  if (["battle", "battle status", "status", "list battle", "turn status"].includes(normalized)) {
     return { handled: true, message: battleManager.describeActiveBattle() };
+  }
+
+  if (["pass", "pass turn", "end turn", "skip turn", "wait turn"].includes(normalized)) {
+    const result = battleManager.passCurrentTurn();
+    return { handled: true, message: result.message };
   }
 
   if (["leave battle", "leave combat", "exit battle view"].includes(normalized)) {
@@ -254,12 +259,14 @@ function startCombatPrototype() {
   if (!character || enemies.length === 0 || battleManager.hasActiveBattle()) return;
 
   const battle = battleManager.createBattle({ character, enemies });
+  const currentActor = battleManager.getCurrentActor();
 
   setupScreen.hidden = true;
   consoleScreen.hidden = false;
   addOutput(
     `Battle created. ${character.name} faces ${enemies.map((enemy) => enemy.name).join(" and ")}.\n` +
-    `Entity: ${battle.entityId}\nType "battle status" to inspect it.`,
+    `Round 1 begins. It is ${currentActor.components.Identity.name}'s turn.\n` +
+    `Entity: ${battle.entityId}\nType "pass" to advance the mechanical turn cycle.`,
   );
   commandInput.focus();
 }
@@ -301,4 +308,5 @@ window.addEventListener("load", () => {
 window.__soloAdventuringDebug = {
   battleManager,
   getActiveBattle: () => battleManager.getActiveBattle(),
+  getCurrentActor: () => battleManager.getCurrentActor(),
 };
