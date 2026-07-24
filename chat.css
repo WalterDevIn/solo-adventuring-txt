@@ -3,6 +3,9 @@
   --token-dice: #c79cff;
   --chat-player-surface: rgba(103, 217, 255, .055);
   --chat-other-surface: rgba(245, 246, 250, .026);
+  --chat-scroll-track: rgba(245, 246, 250, .025);
+  --chat-scroll-thumb: rgba(199, 156, 255, .34);
+  --chat-scroll-thumb-hover: rgba(199, 156, 255, .56);
 }
 
 .command-highlight,
@@ -11,7 +14,45 @@
   line-height: 1.42;
 }
 
+/* The box is the only scroll viewport. The list itself is never height-clamped,
+   so message animation and typewriter growth cannot trigger overflow deletion. */
+.console-box--output {
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-color: var(--chat-scroll-thumb) var(--chat-scroll-track);
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  overscroll-behavior: contain;
+}
+
+.console-box--output::-webkit-scrollbar {
+  width: .58rem;
+}
+
+.console-box--output::-webkit-scrollbar-track {
+  background: var(--chat-scroll-track);
+  border-left: 1px solid rgba(245, 246, 250, .05);
+}
+
+.console-box--output::-webkit-scrollbar-thumb {
+  min-height: 2.4rem;
+  border: 2px solid transparent;
+  background: var(--chat-scroll-thumb);
+  background-clip: padding-box;
+}
+
+.console-box--output::-webkit-scrollbar-thumb:hover {
+  background: var(--chat-scroll-thumb-hover);
+  background-clip: padding-box;
+}
+
 .output-list {
+  display: flex;
+  width: 100%;
+  min-height: 100%;
+  max-height: none;
+  overflow: visible;
+  flex-direction: column;
   gap: .55rem;
 }
 
@@ -19,6 +60,7 @@
   display: flex;
   width: fit-content;
   max-width: 82%;
+  flex: 0 0 auto;
   flex-direction: column;
   align-self: flex-start;
   transform-origin: left bottom;
