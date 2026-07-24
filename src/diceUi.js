@@ -83,41 +83,70 @@ function createExpression(roll, concealPrivateValues) {
   return expression;
 }
 
+function resolveMetadata(actor, purpose) {
+  if (actor) return { actor, purpose };
+  if (!purpose) return { actor: null, purpose: null };
+
+  const separatorIndex = purpose.lastIndexOf(" · ");
+  if (separatorIndex === -1) return { actor: null, purpose };
+
+  return {
+    purpose: purpose.slice(0, separatorIndex),
+    actor: purpose.slice(separatorIndex + 3),
+  };
+}
+
+function isAiActor(actor) {
+  if (!actor) return false;
+
+  const battle = window.__soloAdventuringDebug?.getActiveBattle?.();
+  if (!battle) return false;
+
+  return Object.values(battle.entities).some((entity) =>
+    entity.components.Identity.name === actor
+    && entity.components.Controller.type === "AI",
+  );
+}
+
 export function addDiceOutput(
   roll,
   {
     actor = null,
     purpose = null,
     playSound = true,
-    concealPrivateValues = false,
+    concealPrivateValues = null,
   } = {},
 ) {
   outputPlaceholder.hidden = true;
+
+  const metadata = resolveMetadata(actor, purpose);
+  const shouldConceal = concealPrivateValues ?? isAiActor(metadata.actor);
 
   const shell = document.createElement("div");
   shell.className = "output-entry-shell output-entry-shell--dice";
 
   const entry = document.createElement("article");
   entry.className = "dice-output";
-  entry.dataset.actor = actor ?? "";
-  entry.dataset.purpose = purpose ?? "";
+  entry.dataset.actor = metadata.actor ?? "";
+  entry.dataset.purpose = metadata.purpose ?? "";
+  entry.dataset.concealed = String(shouldConceal);
   entry.setAttribute("aria-label", `Dice roll: ${roll.expression}`);
 
   const main = document.createElement("div");
   main.className = "dice-output__main";
   main.append(
-    createExpression(roll, concealPrivateValues),
+    createExpression(roll, shouldConceal),
     createLabel(":", "dice-output__colon"),
   );
 
   const result = createLabel(String(roll.total), "dice-output__result");
-  if (concealPrivateValues) result.classList.add("dice-output__secret");
+  if (shouldConceal) result.classList.add("dice-output__secret");
   main.append(result);
 
   const details = document.createElement("div");
   details.className = "dice-output__details";
   details.textContent = formatRollDetails(roll);
-  if (concealPrivateValues) details.classList.add("dice-output__details--concealed");
+  if (shouldConceal) details.classList.add("dice-output__details--concealed");
 
   entry.append(main, details);
   shell.append(entry);
