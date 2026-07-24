@@ -16,10 +16,10 @@ const PRESENTATION_DELAY_MS = Object.freeze({
   player: 0,
 });
 const MESSAGE_ENTRANCE_MS = 240;
-const MESSAGE_DWELL_MS = 180;
+const MESSAGE_DWELL_MS = 90;
 
 const scheduledShells = new WeakSet();
-const queuedShells = new WeakSet();
+const entrancePromises = new WeakMap();
 let presentationTimeline = Promise.resolve();
 
 function wait(milliseconds) {
@@ -89,6 +89,11 @@ function refreshMessageGroups() {
   }
 }
 
+function isInitiativeDice(shell) {
+  const diceEntry = shell.querySelector(".dice-output");
+  return diceEntry?.dataset.purpose === "Initiative";
+}
+
 async function revealShell(shell, delay) {
   if (!shell.isConnected) return;
   if (delay > 0) await wait(delay);
@@ -103,57 +108,45 @@ async function revealShell(shell, delay) {
     });
   });
 
-  await wait(MESSAGE_ENTRANCE_MS + MESSAGE_DWELL_MS);
+  await wait(MESSAGE_ENTRANCE_MS);
 }
 
-function isInitiativeDice(shell) {
-  const diceEntry = shell.querySelector(".dice-output");
-  return diceEntry?.dataset.purpose === "Initiative";
-}
+function scheduleShell(shell) {
+  if (!(shell instanceof HTMLElement)) return Promise.resolve();
+  if (!shell.classList.contains("output-entry-shell")) return Promise.resolve();
+  if (entrancePromises.has(shell)) return entrancePromises.get(shell);
 
-function isEngineTyping(shell) {
-  const entry = shell.querySelector(".output-entry");
-  if (!entry) return false;
-  return entry.classList.contains("is-typing") || entry.textContent.trim() === "";
-}
-
-function enqueueReveal(shell) {
-  if (queuedShells.has(shell)) return;
-  queuedShells.add(shell);
+  scheduledShells.add(shell);
+  applyOrigin(shell);
+  shell.classList.add("output-entry-shell--pending");
 
   const kind = shell.dataset.originKind ?? "dm";
   const immediate = kind === "player" || isInitiativeDice(shell);
   const delay = immediate ? 0 : (PRESENTATION_DELAY_MS[kind] ?? PRESENTATION_DELAY_MS.dm);
-  const task = () => revealShell(shell, delay);
+  const task = async () => {
+    await revealShell(shell, delay);
+    if (!immediate) await wait(MESSAGE_DWELL_MS);
+    return shell;
+  };
 
-  if (immediate) {
-    task();
-    return;
+  const promise = immediate
+    ? task()
+    : presentationTimeline.then(task, task);
+
+  if (!immediate) {
+    presentationTimeline = promise.then(() => undefined, () => undefined);
   }
 
-  presentationTimeline = presentationTimeline.then(task, task);
-}
-
-function scheduleShell(shell) {
-  if (!(shell instanceof HTMLElement)) return;
-  if (!shell.classList.contains("output-entry-shell")) return;
-
-  applyOrigin(shell);
-
-  if (!scheduledShells.has(shell)) {
-    scheduledShells.add(shell);
-    shell.classList.add("output-entry-shell--pending");
-  }
-
-  const kind = shell.dataset.originKind ?? "dm";
-  const shouldWaitForTyping = kind === "dm" && isEngineTyping(shell);
-  if (!shouldWaitForTyping) enqueueReveal(shell);
+  entrancePromises.set(shell, promise);
+  return promise;
 }
 
 function scheduleUnseenShells() {
   [...outputList.children]
     .filter((node) => node instanceof HTMLElement)
-    .forEach(scheduleShell);
+    .forEach((shell) => {
+      if (!scheduledShells.has(shell)) scheduleShell(shell);
+    });
 }
 
 function appendMessage(text, { originator, kind }) {
@@ -185,36 +178,6 @@ function getCurrentIntentOrigin() {
     : { name, kind: "creature" };
 }
 
-function parseAttackTarget(command) {
-  const normalized = command.trim().toLowerCase().replace(/\s+/g, " ");
-  const match = normalized.match(
-    /^(?:attack|hit|punch|strike)(?:\s+(?:the\s+)?)?(.+?)(?:\s+with\s+(?:my\s+)?(?:hands|fists|bare hands))?$/i,
-  );
-  if (!match) return null;
-
-  return match[1]
-    .replace(/\s+with\s+(?:my\s+)?(?:hands|fists|bare hands)$/i, "")
-    .trim() || null;
-}
-
-function resolveTargetName(targetText) {
-  const battle = window.__soloAdventuringDebug?.getActiveBattle?.();
-  if (!battle) return targetText;
-
-  const normalized = targetText.toLowerCase();
-  const participants = Object.values(battle.entities);
-  const exact = participants.find((entity) =>
-    entity.components.Identity.name.toLowerCase() === normalized,
-  );
-  if (exact) return exact.components.Identity.name;
-
-  const partial = participants.find((entity) => {
-    const name = entity.components.Identity.name.toLowerCase();
-    return name.includes(normalized) || normalized.includes(name);
-  });
-  return partial?.components.Identity.name ?? targetText;
-}
-
 commandForm.addEventListener("submit", () => {
   const text = commandInput.value.trim();
   if (!text) return;
@@ -224,29 +187,34 @@ commandForm.addEventListener("submit", () => {
     originator: intentOrigin.name,
     kind: intentOrigin.kind,
   });
-
-  const attackTarget = parseAttackTarget(text);
-  if (attackTarget && intentOrigin.kind === "player") {
-    appendMessage(`You try to attack ${resolveTargetName(attackTarget)}.`, ORIGIN.DM);
-  }
 }, true);
 
-const observer = new MutationObserver(() => {
-  refreshMessageGroups();
-  scheduleUnseenShells();
+const observer = new MutationObserver((mutations) => {
+  let childrenChanged = false;
+
+  for (const mutation of mutations) {
+    if (mutation.type !== "childList") continue;
+    childrenChanged = true;
+    mutation.addedNodes.forEach((node) => {
+      if (node instanceof HTMLElement && node.classList.contains("output-entry-shell")) {
+        scheduleShell(node);
+      }
+    });
+  }
+
+  if (childrenChanged) refreshMessageGroups();
 });
 
 observer.observe(outputList, {
   childList: true,
-  subtree: true,
-  characterData: true,
-  attributes: true,
-  attributeFilter: ["class"],
 });
 
 window.__soloAdventuringChat = {
   appendMessage(text, { originator, kind = "creature" }) {
     return appendMessage(text, { originator, kind });
+  },
+  waitForEntrance(shell) {
+    return scheduleShell(shell);
   },
   refreshMessageGroups,
   waitForPresentation() {
