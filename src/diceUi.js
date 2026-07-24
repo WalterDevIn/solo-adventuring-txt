@@ -48,21 +48,6 @@ function createLabel(text, className) {
   return element;
 }
 
-function formatRollDetails(roll) {
-  if (roll.count === 1) {
-    return roll.modifier === 0
-      ? `natural ${roll.rolls[0]}`
-      : `natural ${roll.rolls[0]}${formatModifier(roll.modifier)}`;
-  }
-
-  if (roll.modifierMode === DICE_MODIFIER_MODE.EACH && roll.modifier !== 0) {
-    return `natural [${roll.rolls.join(", ")}] · adjusted [${roll.adjustedRolls.join(", ")}]`;
-  }
-
-  const natural = `[${roll.rolls.join(", ")}] = ${roll.raw}`;
-  return roll.modifier === 0 ? natural : `${natural}${formatModifier(roll.modifier)}`;
-}
-
 function createExpression(roll, concealPrivateValues) {
   const expression = document.createElement("span");
   expression.className = "dice-output__expression";
@@ -125,30 +110,22 @@ export function addDiceOutput(
   const shell = document.createElement("div");
   shell.className = "output-entry-shell output-entry-shell--dice";
 
-  const entry = document.createElement("article");
-  entry.className = "dice-output";
+  const entry = document.createElement("p");
+  entry.className = "output-entry dice-output";
   entry.dataset.actor = metadata.actor ?? "";
   entry.dataset.purpose = metadata.purpose ?? "";
   entry.dataset.concealed = String(shouldConceal);
   entry.setAttribute("aria-label", `Dice roll: ${roll.expression}`);
 
-  const main = document.createElement("div");
-  main.className = "dice-output__main";
-  main.append(
+  entry.append(
     createExpression(roll, shouldConceal),
-    createLabel(":", "dice-output__colon"),
+    createLabel(": ", "dice-output__colon"),
   );
 
   const result = createLabel(String(roll.total), "dice-output__result");
   if (shouldConceal) result.classList.add("dice-output__secret");
-  main.append(result);
+  entry.append(result);
 
-  const details = document.createElement("div");
-  details.className = "dice-output__details";
-  details.textContent = formatRollDetails(roll);
-  if (shouldConceal) details.classList.add("dice-output__details--concealed");
-
-  entry.append(main, details);
   shell.append(entry);
   outputList.append(shell);
   removeOverflowingEntries(shell);
@@ -161,10 +138,10 @@ function addDiceError(message) {
   outputPlaceholder.hidden = true;
 
   const shell = document.createElement("div");
-  shell.className = "output-entry-shell output-entry-shell--dice";
+  shell.className = "output-entry-shell";
 
   const entry = document.createElement("p");
-  entry.className = "dice-output dice-output--error";
+  entry.className = "output-entry dice-output--error";
   entry.textContent = message;
 
   shell.append(entry);
