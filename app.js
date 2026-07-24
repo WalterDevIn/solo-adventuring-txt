@@ -2,6 +2,7 @@ import { parseIntent } from "./src/intentParser.js";
 import { createGameEngine } from "./src/gameEngine.js";
 import { createBattleManager } from "./src/battleManager.js";
 import { createAudioPool } from "./src/audioPool.js";
+import { addDiceOutput, playDiceSound } from "./src/diceUi.js";
 import { highlightText } from "./src/textHighlighter.js";
 
 const setupScreen = document.querySelector("#setupScreen");
@@ -53,7 +54,6 @@ const selection = {
 
 const PLACEHOLDER_INTERVAL = 420;
 const KEY_PRESS_AUDIO_PATH = "assets/audio/key-press.mp3";
-const INITIATIVE_AUDIO_PATH = "assets/audio/dices.mp3";
 
 const typingQueue = [];
 const outputKeySound = createAudioPool({
@@ -70,10 +70,6 @@ const inputKeySound = createAudioPool({
   minPlaybackRate: 0.9,
   maxPlaybackRate: 1.1,
 });
-const initiativeSound = new Audio(INITIATIVE_AUDIO_PATH);
-initiativeSound.preload = "auto";
-initiativeSound.load();
-
 const gameEngine = createGameEngine("CITY");
 const battleManager = createBattleManager();
 
@@ -264,11 +260,33 @@ function processCommand(command) {
   addOutput(result.message);
 }
 
-function playInitiativeSound() {
-  initiativeSound.pause();
-  initiativeSound.currentTime = 0;
-  initiativeSound.volume = 0.72;
-  initiativeSound.play().catch(() => {});
+function createInitiativeRoll(participant) {
+  const initiative = participant.components.Initiative;
+  return {
+    type: "DIE_ROLLED",
+    count: 1,
+    sides: 20,
+    modifier: initiative.modifier,
+    rolls: [initiative.roll],
+    adjustedRolls: [initiative.total],
+    raw: initiative.roll,
+    total: initiative.total,
+    expression: initiative.modifier === 0
+      ? "d20"
+      : `d20 ${initiative.modifier > 0 ? "+" : "-"} ${Math.abs(initiative.modifier)}`,
+  };
+}
+
+function renderInitiativeRolls(battle) {
+  for (const entityId of battle.components.BattleParticipants.entityIds) {
+    const participant = battle.entities[entityId];
+    addDiceOutput(createInitiativeRoll(participant), {
+      purpose: `Initiative · ${participant.components.Identity.name}`,
+      playSound: false,
+    });
+  }
+
+  playDiceSound(battle.components.BattleParticipants.entityIds.length);
 }
 
 function startCombatPrototype() {
@@ -279,18 +297,18 @@ function startCombatPrototype() {
   const battle = battleManager.createBattle({ character, enemies });
   const currentActor = battleManager.getCurrentActor();
   const initiativeOrder = battleManager.getInitiativeOrder();
-  const initiativeSummary = initiativeOrder
-    .map((entry, index) => `${index + 1}. ${entry.name}: ${entry.initiative}`)
-    .join("\n");
+  const orderSummary = initiativeOrder
+    .map((entry, index) => `${index + 1}. ${entry.name}`)
+    .join(" · ");
 
   setupScreen.hidden = true;
   consoleScreen.hidden = false;
-  playInitiativeSound();
+
+  renderInitiativeRolls(battle);
   addOutput(
-    `Battle created. ${character.name} faces ${enemies.map((enemy) => enemy.name).join(" and ")}.\n` +
-    `Initiative rolls:\n${initiativeSummary}\n` +
+    `Initiative order: ${orderSummary}.\n` +
     `Round 1 begins. It is ${currentActor.components.Identity.name}'s turn.\n` +
-    `Entity: ${battle.entityId}\nType "pass" to advance the mechanical turn cycle.`,
+    `Type "pass" to advance the mechanical turn cycle.`,
   );
   commandInput.focus();
 }
