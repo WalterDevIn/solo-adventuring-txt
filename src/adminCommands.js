@@ -22,6 +22,16 @@ function getCurrentActor(battleManager) {
   return battleManager.getCurrentActor?.() ?? null;
 }
 
+function getIntentOrigin(battleManager) {
+  const actor = getCurrentActor(battleManager);
+  if (!actor) return { originator: "Walter", kind: "player" };
+
+  return {
+    originator: actor.components.Identity.name,
+    kind: actor.components.Controller.type === "PLAYER" ? "player" : "creature",
+  };
+}
+
 function findCreature(battle, rawName, { defeatedOnly = false } = {}) {
   const target = normalizeName(rawName);
   if (!target) return null;
@@ -293,6 +303,7 @@ async function handleAdminSubmit(event) {
   try {
     const { battleManager, chat } = await waitForRuntime();
     installManagerGuards(battleManager);
+    await chat.appendMessage(command, getIntentOrigin(battleManager));
     const result = executeAdminCommand(command, battleManager);
     await presentAdminMessages(result.messages, chat);
   } catch (error) {
