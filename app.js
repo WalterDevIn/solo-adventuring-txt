@@ -1,6 +1,7 @@
 import { parseIntent } from "./src/intentParser.js";
 import { createGameEngine } from "./src/gameEngine.js";
 import { createBattleManager } from "./src/battleManager.js";
+import { createAudioPool } from "./src/audioPool.js";
 import { highlightText } from "./src/textHighlighter.js";
 
 const setupScreen = document.querySelector("#setupScreen");
@@ -52,16 +53,24 @@ const selection = {
 
 const PLACEHOLDER_INTERVAL = 420;
 const KEY_PRESS_AUDIO_PATH = "assets/audio/key-press.mp3";
-const KEY_PRESS_MIN_PITCH = 0.86;
-const KEY_PRESS_MAX_PITCH = 1.14;
-const KEY_PRESS_VOLUME = 0.28;
 
 const typingQueue = [];
-const keyPressSound = new Audio(KEY_PRESS_AUDIO_PATH);
+const outputKeySound = createAudioPool({
+  src: KEY_PRESS_AUDIO_PATH,
+  size: 8,
+  volume: 0.18,
+  minPlaybackRate: 0.86,
+  maxPlaybackRate: 1.14,
+});
+const inputKeySound = createAudioPool({
+  src: KEY_PRESS_AUDIO_PATH,
+  size: 5,
+  volume: 0.18,
+  minPlaybackRate: 0.9,
+  maxPlaybackRate: 1.1,
+});
 const gameEngine = createGameEngine("CITY");
 const battleManager = createBattleManager();
-keyPressSound.preload = "auto";
-keyPressSound.load();
 
 let isTyping = false;
 let placeholderIndex = 0;
@@ -148,21 +157,6 @@ function getTypingDelay(character) {
   return /[.,;:!?]/.test(character) ? 65 : 24;
 }
 
-function getRandomPitch() {
-  return KEY_PRESS_MIN_PITCH + Math.random() * (KEY_PRESS_MAX_PITCH - KEY_PRESS_MIN_PITCH);
-}
-
-function playKeyPressSound() {
-  keyPressSound.pause();
-  keyPressSound.currentTime = 0;
-  keyPressSound.volume = KEY_PRESS_VOLUME;
-  keyPressSound.playbackRate = getRandomPitch();
-  keyPressSound.preservesPitch = false;
-  keyPressSound.play().catch(() => {
-    // Browsers may block audio until the first user interaction.
-  });
-}
-
 function isPrintableInputKey(event) {
   return event.key.length === 1
     && !event.ctrlKey
@@ -188,7 +182,7 @@ async function typeEntry(shell, entry, text) {
     if (!shell.isConnected) return;
     visibleText += character;
     entry.innerHTML = highlightText(visibleText);
-    playKeyPressSound();
+    outputKeySound.play();
     removeOldestOverflowingEntries(shell);
     await wait(getTypingDelay(character));
   }
@@ -292,7 +286,7 @@ window.setInterval(() => {
 startBattleButton.addEventListener("click", startCombatPrototype);
 commandInput.addEventListener("keydown", (event) => {
   if (isPrintableInputKey(event)) {
-    playKeyPressSound();
+    inputKeySound.play();
   }
 });
 commandInput.addEventListener("input", updateInputHighlight);
