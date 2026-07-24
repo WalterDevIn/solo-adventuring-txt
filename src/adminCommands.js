@@ -158,20 +158,6 @@ async function normalizeTurnFlow() {
   console.warn("Automatic turn normalization reached its safety limit.");
 }
 
-function waitUntilActionPresentationFinishes() {
-  return new Promise((resolve) => {
-    const startedAt = performance.now();
-    const check = () => {
-      if (!commandInput.disabled || performance.now() - startedAt > 10000) {
-        resolve();
-        return;
-      }
-      window.setTimeout(check, 32);
-    };
-    check();
-  });
-}
-
 function queueAutomaticTurnMessages() {
   queueMicrotask(async () => {
     await normalizeTurnFlow();
@@ -310,8 +296,7 @@ window.addEventListener("submit", (event) => {
       console.error("Control command failed", error);
       return waitForRuntime().then(() => say(`Control command failed: ${error.message}`));
     })
-    .finally(async () => {
-      await waitUntilActionPresentationFinishes();
+    .finally(() => {
       commandInput.disabled = false;
       commandInput.focus();
     });
