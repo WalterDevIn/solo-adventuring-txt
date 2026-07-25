@@ -7,9 +7,9 @@ const mapCaption = document.querySelector("#mapCaption");
 
 function pin(x, y, label, active = false) {
   return `
-    <g class="map-pin${active ? " is-active" : "}" transform="translate(${x} ${y})">
-      <line x1="0" y1="0" x2="0" y2="11"></line>
-      <circle cx="0" cy="0" r="3.5"></circle>
+    <g class="map-pin${active ? " is-active" : ""}" transform="translate(${x} ${y})">
+      <line x1="0" y1="0" x2="0" y2="12"></line>
+      <circle cx="0" cy="0" r="4"></circle>
       <text x="7" y="3">${label}</text>
     </g>
   `;
@@ -42,7 +42,10 @@ function hexPoints(cx, cy, radius) {
 
 function renderTravelMap(location) {
   mapLabel.textContent = "TRAVEL · 3 MI / HEX";
-  mapCaption.textContent = location.includes("Western Road") ? "Walter is one hex west of Mossfield" : "Lowlands route";
+  mapCaption.textContent = location.includes("Western Road")
+    ? "Walter is one hex west of Mossfield"
+    : "Lowlands route";
+
   const hexes = [];
   const radius = 21;
   for (let row = 0; row < 3; row += 1) {
@@ -51,11 +54,12 @@ function renderTravelMap(location) {
       const cy = 28 + row * 32;
       const active = row === 1 && col === 1;
       const destination = row === 1 && col === 3;
-      hexes.push(`<polygon class="hex${active ? " is-active" : "}${destination ? " is-destination" : "}" points="${hexPoints(cx, cy, radius)}"></polygon>`);
+      hexes.push(`<polygon class="hex${active ? " is-active" : ""}${destination ? " is-destination" : ""}" points="${hexPoints(cx, cy, radius)}"></polygon>`);
       if (active) hexes.push(`<text class="map-symbol" x="${cx}" y="${cy + 3}">@</text>`);
       if (destination) hexes.push(`<text class="map-symbol" x="${cx}" y="${cy + 3}">R</text>`);
     }
   }
+
   mapView.innerHTML = `
     <svg viewBox="0 0 180 120" role="img" aria-label="Hex travel map with three-mile hexes">
       ${hexes.join("")}
@@ -64,16 +68,18 @@ function renderTravelMap(location) {
   `;
 }
 
-function renderCombatMap(location, objective) {
+function renderCombatMap(objective) {
   const defeated = objective.includes("Search") || objective.includes("Return");
   mapLabel.textContent = "POSITION · 5 FT / CELL";
   mapCaption.textContent = defeated ? "Courtyard secured" : "Walter and the slime are adjacent";
+
   const cells = [];
   for (let row = 0; row < 6; row += 1) {
     for (let col = 0; col < 6; col += 1) {
       cells.push(`<rect class="grid-cell" x="${col * 24}" y="${row * 24}" width="24" height="24"></rect>`);
     }
   }
+
   mapView.innerHTML = `
     <svg viewBox="0 0 144 144" role="img" aria-label="Combat grid with Walter and Green Slime">
       ${cells.join("")}
@@ -87,25 +93,25 @@ function renderCombatMap(location, objective) {
   `;
 }
 
-function renderMap() {
-  if (!locationName || !mapView) return;
-  const location = locationName.textContent || "";
-  const objective = objectiveLabel?.textContent || "";
-  const inBattle = battleSection && !battleSection.hidden;
+export function renderContextMap({ location, objective, inBattle }) {
+  if (!mapView || !mapLabel || !mapCaption) return;
 
   if (inBattle || location.includes("Western Ruin")) {
-    renderCombatMap(location, objective);
-    return;
-  }
-  if (location.includes("Road") || location.includes("Lowlands")) {
+    renderCombatMap(objective);
+  } else if (location.includes("Road") || location.includes("Lowlands")) {
     renderTravelMap(location);
-    return;
+  } else {
+    renderSettlementMap(location);
   }
-  renderSettlementMap(location);
 }
 
-const observer = new MutationObserver(renderMap);
-if (locationName) observer.observe(locationName, { childList: true, characterData: true, subtree: true });
-if (objectiveLabel) observer.observe(objectiveLabel, { childList: true, characterData: true, subtree: true });
-if (battleSection) observer.observe(battleSection, { attributes: true, attributeFilter: ["hidden"] });
-window.addEventListener("load", renderMap);
+function renderFromDom() {
+  renderContextMap({
+    location: locationName?.textContent || "",
+    objective: objectiveLabel?.textContent || "",
+    inBattle: Boolean(battleSection && !battleSection.hidden),
+  });
+}
+
+document.addEventListener("DOMContentLoaded", renderFromDom);
+window.addEventListener("load", renderFromDom);
