@@ -23,181 +23,181 @@ const WAIT = 14;
 
 const scenes = {
   arrival: {
-    location: "Mossfield", time: "Morning · Light rain", objective: "Speak with the Guide",
-    nearby: ["Guide · eastern gate", "Nurse · infirmary"], journal: "No discoveries yet.",
+    location: "Mossfield", time: "Mañana · Lluvia ligera", objective: "Hablar con la Guía",
+    nearby: ["Guía · puerta oriental", "Enfermera · enfermería"], journal: "Aún no hay descubrimientos.",
     messages: [
-      ["WORLD", "Rain gathers on the timber roofs of Mossfield. The eastern gate stands open."],
-      ["WORLD", "A hooded guide waits beneath the awning, watching the western road."],
+      ["MUNDO", "La lluvia se acumula sobre los techos de madera de Mossfield. La puerta oriental está abierta."],
+      ["MUNDO", "Una guía encapuchada espera bajo el alero mientras observa el camino occidental."],
     ],
     suggestions: [
-      { label: "Talk to the Guide", command: "talk to the guide", next: "guide" },
-      { label: "Inspect the gate", command: "inspect the gate", next: "gate" },
+      { label: "Hablar con la Guía", command: "hablar con la guía", next: "guide" },
+      { label: "Inspeccionar la puerta", command: "inspeccionar la puerta", next: "gate" },
     ],
   },
   gate: {
-    location: "Mossfield · Eastern Gate", time: "Morning · Light rain", objective: "Speak with the Guide",
-    nearby: ["Guide · nearby", "Fresh wagon tracks"], journal: "The western road has been left unused.",
+    location: "Mossfield · Puerta oriental", time: "Mañana · Lluvia ligera", objective: "Hablar con la Guía",
+    nearby: ["Guía · cerca", "Huellas recientes de carro"], journal: "El camino occidental lleva tiempo sin utilizarse.",
     messages: [
-      ["WORLD", "The gate is undamaged. Wagon tracks enter from the east, but none leave toward the west."],
-      ["SYSTEM", "The world communicates danger before combat begins."],
+      ["MUNDO", "La puerta no está dañada. Las huellas de carro entran desde el este, pero ninguna sale hacia el oeste."],
+      ["SISTEMA", "El mundo comunica el peligro antes de que comience el combate."],
     ],
-    suggestions: [{ label: "Talk to the Guide", command: "talk to the guide", next: "guide" }],
+    suggestions: [{ label: "Hablar con la Guía", command: "hablar con la guía", next: "guide" }],
   },
   guide: {
-    location: "Mossfield · Eastern Gate", time: "Morning · Light rain", objective: "Learn about the western ruin",
-    nearby: ["Guide · cautious", "Closed western road"], journal: "The Guide believes something occupies the old western ruin.",
+    location: "Mossfield · Puerta oriental", time: "Mañana · Lluvia ligera", objective: "Saber más sobre la ruina occidental",
+    nearby: ["Guía · cautelosa", "Camino occidental · cerrado"], journal: "La Guía cree que algo ocupa la antigua ruina occidental.",
     messages: [
-      ["GUIDE", "You are the adventurer? Good. I need eyes on the old ruin, not another grave."],
-      ["GUIDE", "Three nights ago, something crossed the fields. Since then, the western road has gone silent."],
+      ["GUÍA", "¿Tú eres el aventurero? Bien. Necesito ojos en la vieja ruina, no otra tumba."],
+      ["GUÍA", "Hace tres noches algo cruzó los campos. Desde entonces, el camino occidental quedó en silencio."],
     ],
     suggestions: [
-      { label: "Ask about the ruin", command: "ask about the ruin", next: "briefing" },
-      { label: "Ask about the danger", command: "ask about the danger", next: "danger" },
+      { label: "Preguntar por la ruina", command: "preguntar por la ruina", next: "briefing" },
+      { label: "Preguntar por el peligro", command: "preguntar por el peligro", next: "danger" },
     ],
   },
   danger: {
-    location: "Mossfield · Eastern Gate", time: "Morning · Light rain", objective: "Learn about the western ruin",
-    nearby: ["Guide · uneasy", "Closed western road"], journal: "The Guide found corrosive residue near the road.",
+    location: "Mossfield · Puerta oriental", time: "Mañana · Lluvia ligera", objective: "Saber más sobre la ruina occidental",
+    nearby: ["Guía · inquieta", "Camino occidental · cerrado"], journal: "La Guía encontró residuos corrosivos cerca del camino.",
     messages: [
-      ["GUIDE", "No tracks I could trust. Only flattened grass and green residue that burned my glove."],
-      ["GUIDE", "If you see it, do not assume it thinks like a person."],
+      ["GUÍA", "No encontré huellas en las que pudiera confiar. Solo hierba aplastada y un residuo verde que quemó mi guante."],
+      ["GUÍA", "Cuando lo veas, no supongas que piensa como una persona."],
     ],
-    suggestions: [{ label: "Ask about the ruin", command: "ask about the ruin", next: "briefing" }],
+    suggestions: [{ label: "Preguntar por la ruina", command: "preguntar por la ruina", next: "briefing" }],
   },
   briefing: {
-    location: "Mossfield · Eastern Gate", time: "Late morning", objective: "Reach the western ruin",
-    nearby: ["Guide · mission offered", "Western road · available"], journal: "New lead: inspect the western ruin and return with evidence.",
+    location: "Mossfield · Puerta oriental", time: "Final de la mañana", objective: "Llegar a la ruina occidental",
+    nearby: ["Guía · misión ofrecida", "Camino occidental · disponible"], journal: "Nueva pista: inspeccionar la ruina occidental y regresar con pruebas.",
     messages: [
-      ["GUIDE", "Follow the stone markers. The ruin is less than an hour away."],
-      ["SYSTEM", "New objective: Reach the western ruin."],
+      ["GUÍA", "Sigue los mojones de piedra. La ruina está a menos de una hora."],
+      ["SISTEMA", "Nuevo objetivo: llegar a la ruina occidental."],
     ],
-    suggestions: [{ label: "Leave town", command: "leave town", next: "road" }],
+    suggestions: [{ label: "Salir del pueblo", command: "salir del pueblo", next: "road" }],
   },
   road: {
-    location: "Western Road", time: "Near noon · Rain fading", objective: "Investigate the tracks",
-    nearby: ["Ruined marker", "Flattened grass", "Distant structure"], journal: "A heavy creature moved toward the ruin.",
+    location: "Camino occidental", time: "Cerca del mediodía · La lluvia cesa", objective: "Investigar las huellas",
+    nearby: ["Mojón derrumbado", "Hierba aplastada", "Estructura distante"], journal: "Una criatura pesada se dirigió hacia la ruina.",
     messages: [
-      ["WORLD", "Mossfield disappears behind wet grass and low hills."],
-      ["WORLD", "Near a broken marker, the grass has been pressed into a broad, glistening trail."],
+      ["MUNDO", "Mossfield desaparece detrás de la hierba mojada y las colinas bajas."],
+      ["MUNDO", "Junto a un mojón roto, la hierba forma un rastro ancho y brillante."],
     ],
     suggestions: [
-      { label: "Inspect the tracks", command: "inspect the tracks", next: "tracks" },
-      { label: "Continue to the ruin", command: "continue to the ruin", next: "ruin" },
+      { label: "Inspeccionar las huellas", command: "inspeccionar las huellas", next: "tracks" },
+      { label: "Continuar hacia la ruina", command: "continuar hacia la ruina", next: "ruin" },
     ],
   },
   tracks: {
-    location: "Western Road", time: "Near noon · Overcast", objective: "Reach the western ruin",
-    nearby: ["Corrosive trail", "Ruin · west"], journal: "Evidence: a corrosive ooze traveled toward the ruin.",
+    location: "Camino occidental", time: "Cerca del mediodía · Nublado", objective: "Llegar a la ruina occidental",
+    nearby: ["Rastro corrosivo", "Ruina · oeste"], journal: "Prueba: una criatura corrosiva viajó recientemente hacia la ruina.",
     messages: [
-      ["WORLD", "The trail is not mud. It is a thin membrane clinging to the grass."],
-      ["SYSTEM", "Evidence recorded: Corrosive residue."],
+      ["MUNDO", "El rastro no es barro. Es una membrana fina adherida a la hierba."],
+      ["SISTEMA", "Prueba registrada: residuo corrosivo."],
     ],
-    suggestions: [{ label: "Continue to the ruin", command: "continue to the ruin", next: "ruin" }],
+    suggestions: [{ label: "Continuar hacia la ruina", command: "continuar hacia la ruina", next: "ruin" }],
   },
   ruin: {
-    location: "Western Ruin · Courtyard", time: "Noon", objective: "Survive the encounter",
-    nearby: ["Collapsed arch", "Green Slime · passage"], journal: "A Green Slime occupies the courtyard.",
-    battle: { turn: "Walter's turn", playerHp: "12 / 12 HP", enemies: ["Green Slime · 8 / 8 HP · Near"] },
+    location: "Ruina occidental · Patio", time: "Mediodía", objective: "Sobrevivir al encuentro",
+    nearby: ["Arco derrumbado", "Baba verde · bloquea el paso"], journal: "Una Baba verde ocupa el patio.",
+    battle: { turn: "Turno de Walter", playerHp: "12 / 12 PV", enemies: ["Baba verde · 8 / 8 PV · Cerca"] },
     messages: [
-      ["WORLD", "The courtyard is still except for a wet movement beneath the arch."],
-      ["ENEMY_INTENTION", "Green Slime moves to block Walter's passage."],
-      ["SYSTEM", "Encounter started. Walter acts first."],
+      ["MUNDO", "El patio permanece inmóvil salvo por un movimiento húmedo bajo el arco."],
+      ["INTENCIÓN_ENEMIGA", "La Baba verde intenta bloquear el paso de Walter."],
+      ["SISTEMA", "Comienza el encuentro. Walter actúa primero."],
     ],
     suggestions: [
-      { label: "Inspect the slime", command: "inspect the slime", next: "inspectSlime" },
-      { label: "Attack the slime", command: "attack the slime", next: "attackOne" },
-      { label: "Dodge", command: "dodge", next: "dodge" },
+      { label: "Inspeccionar la baba", command: "inspeccionar la baba", next: "inspectSlime" },
+      { label: "Atacar a la baba", command: "atacar a la baba", next: "attackOne" },
+      { label: "Esquivar", command: "esquivar", next: "dodge" },
     ],
   },
   inspectSlime: {
-    location: "Western Ruin · Courtyard", time: "Noon", objective: "Survive the encounter",
-    nearby: ["Collapsed arch", "Green Slime · passage"], journal: "Green Slime: slow, corrosive, no visible armor.",
-    battle: { turn: "Walter's turn", playerHp: "12 / 12 HP", enemies: ["Green Slime · 8 / 8 HP · Near"] },
+    location: "Ruina occidental · Patio", time: "Mediodía", objective: "Sobrevivir al encuentro",
+    nearby: ["Arco derrumbado", "Baba verde · bloquea el paso"], journal: "Baba verde: lenta, corrosiva y sin armadura visible.",
+    battle: { turn: "Turno de Walter", playerHp: "12 / 12 PV", enemies: ["Baba verde · 8 / 8 PV · Cerca"] },
     messages: [
-      ["SYSTEM", "Green Slime · Slow movement · Corrosive body · No visible armor."],
-      ["WORLD", "It advances by folding over itself. The stones hiss where it passes."],
+      ["SISTEMA", "Baba verde · Movimiento lento · Cuerpo corrosivo · Sin armadura visible."],
+      ["MUNDO", "Avanza plegándose sobre sí misma. Las piedras silban a su paso."],
     ],
     suggestions: [
-      { label: "Attack the slime", command: "attack the slime", next: "attackOne" },
-      { label: "Dodge", command: "dodge", next: "dodge" },
+      { label: "Atacar a la baba", command: "atacar a la baba", next: "attackOne" },
+      { label: "Esquivar", command: "esquivar", next: "dodge" },
     ],
   },
   dodge: {
-    location: "Western Ruin · Courtyard", time: "Noon", objective: "Survive the encounter",
-    nearby: ["Collapsed arch", "Green Slime · exposed"], journal: "The slime overextended after Walter evaded it.",
-    battle: { turn: "Walter's turn", playerHp: "12 / 12 HP", enemies: ["Green Slime · 8 / 8 HP · Near · Exposed"] },
+    location: "Ruina occidental · Patio", time: "Mediodía", objective: "Sobrevivir al encuentro",
+    nearby: ["Arco derrumbado", "Baba verde · expuesta"], journal: "La Baba se extendió demasiado cuando Walter evitó su ataque.",
+    battle: { turn: "Turno de Walter", playerHp: "12 / 12 PV", enemies: ["Baba verde · 8 / 8 PV · Cerca · Expuesta"] },
     messages: [
-      ["ENEMY_INTENTION", "Green Slime lashes at Walter."],
-      ["DICE", "Green Slime attack · d20 → 7 · Miss"],
-      ["WORLD", "The creature crosses the stones and leaves its core exposed."],
-      ["SYSTEM", "Walter's turn."],
+      ["INTENCIÓN_ENEMIGA", "La Baba verde intenta azotar a Walter."],
+      ["DADOS", "Ataque de Baba verde · d20 → 7 · Falla"],
+      ["MUNDO", "La criatura cruza las piedras y deja expuesto su núcleo."],
+      ["SISTEMA", "Turno de Walter."],
     ],
-    suggestions: [{ label: "Attack the exposed slime", command: "attack the slime", next: "attackOne" }],
+    suggestions: [{ label: "Atacar a la baba expuesta", command: "atacar a la baba", next: "attackOne" }],
   },
   attackOne: {
-    location: "Western Ruin · Courtyard", time: "Noon", objective: "Defeat the Green Slime",
-    nearby: ["Collapsed arch", "Green Slime · wounded"], journal: "The Green Slime is wounded but still blocks the ruin.",
-    battle: { turn: "Walter's turn", playerHp: "10 / 12 HP", enemies: ["Green Slime · 3 / 8 HP · Near · Wounded"] },
+    location: "Ruina occidental · Patio", time: "Mediodía", objective: "Derrotar a la Baba verde",
+    nearby: ["Arco derrumbado", "Baba verde · herida"], journal: "La Baba verde está herida, pero todavía bloquea la ruina.",
+    battle: { turn: "Turno de Walter", playerHp: "10 / 12 PV", enemies: ["Baba verde · 3 / 8 PV · Cerca · Herida"] },
     messages: [
-      ["DICE", "Walter attack · d20 + 3 → 18 · Hit"],
-      ["DICE", "Damage · d6 + 2 → 5"],
-      ["WORLD", "The blow tears through the slime's outer mass."],
-      ["ENEMY_INTENTION", "Green Slime strikes Walter."],
-      ["DICE", "Green Slime attack · d20 → 15 · Hit · 2 damage"],
-      ["SYSTEM", "Walter's turn."],
+      ["DADOS", "Ataque de Walter · d20 + 3 → 18 · Impacta"],
+      ["DADOS", "Daño · d6 + 2 → 5"],
+      ["MUNDO", "El golpe atraviesa la masa exterior de la Baba."],
+      ["INTENCIÓN_ENEMIGA", "La Baba verde intenta golpear a Walter."],
+      ["DADOS", "Ataque de Baba verde · d20 → 15 · Impacta · 2 de daño"],
+      ["SISTEMA", "Turno de Walter."],
     ],
-    suggestions: [{ label: "Finish the slime", command: "attack the slime", next: "victory" }],
+    suggestions: [{ label: "Rematar a la baba", command: "atacar a la baba", next: "victory" }],
   },
   victory: {
-    location: "Western Ruin · Courtyard", time: "Early afternoon", objective: "Search the ruin",
-    nearby: ["Defeated slime", "Open passage", "Collapsed chamber"], journal: "The passage into the ruin is open.", playerHp: "10 / 12 HP", battle: null,
+    location: "Ruina occidental · Patio", time: "Primeras horas de la tarde", objective: "Registrar la ruina",
+    nearby: ["Baba derrotada", "Paso abierto", "Cámara derrumbada"], journal: "El paso hacia el interior de la ruina está abierto.", playerHp: "10 / 12 PV", battle: null,
     messages: [
-      ["DICE", "Walter attack · d20 + 3 → 21 · Hit"],
-      ["DICE", "Damage · d6 + 2 → 4"],
-      ["WORLD", "The exposed core collapses and the remaining mass goes still."],
-      ["SYSTEM", "Victory. The encounter ends without leaving the narrative flow."],
+      ["DADOS", "Ataque de Walter · d20 + 3 → 21 · Impacta"],
+      ["DADOS", "Daño · d6 + 2 → 4"],
+      ["MUNDO", "El núcleo expuesto colapsa y el resto de la masa queda inmóvil."],
+      ["SISTEMA", "Victoria. El encuentro termina sin abandonar el flujo narrativo."],
     ],
-    suggestions: [{ label: "Search the ruin", command: "search the ruin", next: "reward" }],
+    suggestions: [{ label: "Registrar la ruina", command: "registrar la ruina", next: "reward" }],
   },
   reward: {
-    location: "Western Ruin · Inner Chamber", time: "Early afternoon", objective: "Return to Mossfield",
-    nearby: ["Stone basin", "Broken chest", "Road home"], journal: "Recovered a caravan seal and a corroded fragment.", playerHp: "10 / 12 HP",
+    location: "Ruina occidental · Cámara interior", time: "Primeras horas de la tarde", objective: "Regresar a Mossfield",
+    nearby: ["Cuenco de piedra", "Cofre roto", "Camino de regreso"], journal: "Walter recuperó un sello de caravana y un fragmento corroído.", playerHp: "10 / 12 PV",
     messages: [
-      ["WORLD", "Behind the slime lies a chamber used recently as a feeding ground."],
-      ["WORLD", "Among ruined packs you find a brass caravan seal and a fragment covered in green residue."],
-      ["SYSTEM", "Objective updated: Return to Mossfield."],
+      ["MUNDO", "Detrás de la Baba hay una cámara utilizada recientemente como zona de alimentación."],
+      ["MUNDO", "Entre mochilas arruinadas encuentras un sello de caravana de latón y un fragmento cubierto de residuo verde."],
+      ["SISTEMA", "Objetivo actualizado: regresar a Mossfield."],
     ],
-    suggestions: [{ label: "Return to Mossfield", command: "return to mossfield", next: "return" }],
+    suggestions: [{ label: "Regresar a Mossfield", command: "regresar a mossfield", next: "return" }],
   },
   return: {
-    location: "Mossfield", time: "Evening", objective: "Report to the Guide",
-    nearby: ["Guide · gate", "Nurse · treating traveler"], journal: "The seal connects the ruin to a missing caravan.", playerHp: "10 / 12 HP",
+    location: "Mossfield", time: "Atardecer", objective: "Informar a la Guía",
+    nearby: ["Guía · puerta", "Enfermera · atiende a un viajero"], journal: "El sello relaciona la ruina con una caravana desaparecida.", playerHp: "10 / 12 PV",
     messages: [
-      ["WORLD", "Mossfield is louder when you return. A damaged caravan arrived while you were away."],
-      ["SYSTEM", "While you were away: the Nurse treated an injured traveler; the Guide returned to the gate."],
-      ["GUIDE", "You came back. Show me what you found."],
+      ["MUNDO", "Mossfield está más ruidoso cuando regresas. Una caravana dañada llegó durante tu ausencia."],
+      ["SISTEMA", "Durante tu ausencia: la Enfermera atendió a un viajero herido y la Guía regresó a la puerta."],
+      ["GUÍA", "Regresaste. Muéstrame lo que encontraste."],
     ],
-    suggestions: [{ label: "Give the seal to the Guide", command: "give the seal to the guide", next: "ending" }],
+    suggestions: [{ label: "Entregar el sello a la Guía", command: "entregar el sello a la guía", next: "ending" }],
   },
   ending: {
-    location: "Mossfield", time: "Evening", objective: "Prototype complete",
-    nearby: ["Guide · relieved", "New caravan"], journal: "Exploration, dialogue, combat and world change were presented through one interface.", playerHp: "10 / 12 HP",
+    location: "Mossfield", time: "Atardecer", objective: "Prototipo completado",
+    nearby: ["Guía · aliviada", "Nueva caravana"], journal: "La interfaz presentó exploración, conversación, combate y cambios del mundo.", playerHp: "10 / 12 PV",
     messages: [
-      ["GUIDE", "This belonged to the caravan we lost. The ruin was not the beginning of this."],
-      ["SYSTEM", "Quest completed: The Western Ruin."],
-      ["SYSTEM", "Evaluation point: were intention, consequence and world change clear?"],
+      ["GUÍA", "Esto pertenecía a la caravana que perdimos. La ruina no fue el comienzo de todo esto."],
+      ["SISTEMA", "Misión completada: La ruina occidental."],
+      ["SISTEMA", "Punto de evaluación: ¿quedaron claras la intención, la consecuencia y la transformación del mundo?"],
     ],
-    suggestions: [{ label: "Restart the prototype", command: "restart", action: "restart" }],
+    suggestions: [{ label: "Reiniciar el prototipo", command: "reiniciar", action: "restart" }],
   },
 };
 
 let currentSceneId = "arrival";
 let isPresenting = false;
 const wait = (milliseconds) => new Promise((resolve) => window.setTimeout(resolve, milliseconds));
-const normalize = (value) => value.trim().toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+const normalize = (value) => value.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
 
 function clearOutput() { outputList.replaceChildren(); }
-function originClass(origin) { return origin.toLowerCase().replaceAll("_", "-"); }
+function originClass(origin) { return origin.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replaceAll("_", "-"); }
 function originLabel(origin) { return origin.replaceAll("_", " "); }
 
 async function typeMessage(origin, text, instant = false) {
@@ -209,7 +209,6 @@ async function typeMessage(origin, text, instant = false) {
   const body = document.createElement("p");
   shell.append(label, body);
   outputList.append(shell);
-
   if (instant) {
     body.textContent = text;
     outputList.scrollTop = outputList.scrollHeight;
@@ -241,9 +240,8 @@ function renderContext(scene) {
   timeLabel.textContent = scene.time;
   objectiveLabel.textContent = scene.objective;
   journalEntry.textContent = scene.journal;
-  playerHp.textContent = scene.playerHp ?? scene.battle?.playerHp ?? "12 / 12 HP";
+  playerHp.textContent = scene.playerHp ?? scene.battle?.playerHp ?? "12 / 12 PV";
   nearbyList.replaceChildren(...scene.nearby.map((item) => Object.assign(document.createElement("div"), { textContent: item })));
-
   if (scene.battle) {
     battleSection.hidden = false;
     battleList.replaceChildren(...scene.battle.enemies.map((item) => Object.assign(document.createElement("div"), { textContent: item })));
@@ -267,7 +265,7 @@ async function presentScene(sceneId) {
   commandInput.disabled = false;
   commandInput.value = "";
   commandInput.focus();
-  commandHelp.textContent = "Choose a suggestion or write the equivalent intention.";
+  commandHelp.textContent = "Elige una sugerencia o escribe la intención equivalente.";
   isPresenting = false;
 }
 
@@ -275,12 +273,12 @@ async function submitIntention(rawCommand) {
   const scene = scenes[currentSceneId];
   const match = scene.suggestions.find((suggestion) => normalize(suggestion.command) === normalize(rawCommand));
   if (!match) {
-    commandHelp.textContent = "That intention is outside this scripted scene. Use one of the contextual suggestions.";
+    commandHelp.textContent = "Esa intención queda fuera de esta escena guionada. Utiliza una de las sugerencias contextuales.";
     commandInput.select();
     return;
   }
   if (match.action === "restart") return restartPrototype();
-  await typeMessage("PLAYER_INTENTION", rawCommand, true);
+  await typeMessage("INTENCIÓN_DEL_JUGADOR", rawCommand, true);
   await presentScene(match.next);
 }
 
@@ -298,7 +296,7 @@ function restartPrototype() {
   gameScreen.hidden = true;
   introScreen.hidden = false;
   commandInput.value = "";
-  commandHelp.textContent = "The prototype accepts the suggested intentions for this scene.";
+  commandHelp.textContent = "El prototipo acepta las intenciones sugeridas para esta escena.";
   beginButton.focus();
 }
 
