@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Prototipo guionado de experiencia para Solo Adventuring." />
-    <title>Solo Adventuring — Player Experience Prototype</title>
+    <title>Solo Adventuring — Prototipo de experiencia</title>
     <link rel="stylesheet" href="experience.css" />
     <script src="app.js" type="module"></script>
     <script src="mapUi.js" type="module"></script>
@@ -12,116 +12,79 @@
   <body>
     <main class="prototype-shell">
       <section class="intro-screen" id="introScreen">
-        <p class="eyebrow">PLAYER EXPERIENCE PROTOTYPE / 01</p>
+        <p class="eyebrow">PROTOTIPO DE EXPERIENCIA / 01</p>
         <h1>Solo Adventuring</h1>
-        <p class="intro-copy">
-          Una experiencia guionada para evaluar cómo se siente explorar, conversar y combatir
-          antes de construir la simulación real.
-        </p>
-
+        <p class="intro-copy">Una experiencia guionada para evaluar cómo se siente explorar, conversar y combatir antes de construir la simulación real.</p>
         <div class="intro-grid">
           <article class="character-card is-selected">
             <span class="card-index">01</span>
             <div>
               <strong>Walter</strong>
-              <span>Human Fighter · Level 1</span>
+              <span>Guerrero humano · Nivel 1</span>
               <small>Resistente, directo y preparado para abrir camino.</small>
             </div>
-            <div class="compact-stats">
-              <span>HP 12/12</span>
-              <span>AC 15</span>
-            </div>
+            <div class="compact-stats"><span>PV 12/12</span><span>CA 15</span></div>
           </article>
-
           <article class="mission-card">
             <span class="card-index">02</span>
             <div>
-              <strong>The Western Ruin</strong>
-              <span>Mossfield · Lowlands</span>
+              <strong>La ruina occidental</strong>
+              <span>Mossfield · Tierras bajas</span>
               <small>Una guía local necesita saber qué ocurrió en una ruina cercana.</small>
             </div>
           </article>
         </div>
-
-        <button class="primary-action" id="beginButton" type="button">Begin scripted journey</button>
+        <button class="primary-action" id="beginButton" type="button">Comenzar viaje guionado</button>
       </section>
 
       <section class="game-screen" id="gameScreen" hidden>
         <header class="world-bar">
-          <div>
-            <span class="label">LOCATION</span>
-            <strong id="locationName">Mossfield</strong>
-          </div>
-          <div>
-            <span class="label">TIME</span>
-            <strong id="timeLabel">Morning</strong>
-          </div>
-          <div>
-            <span class="label">OBJECTIVE</span>
-            <strong id="objectiveLabel">Speak with the Guide</strong>
-          </div>
+          <div><span class="label">UBICACIÓN</span><strong id="locationName">Mossfield</strong></div>
+          <div><span class="label">HORA</span><strong id="timeLabel">Mañana</strong></div>
+          <div><span class="label">OBJETIVO</span><strong id="objectiveLabel">Hablar con la Guía</strong></div>
         </header>
 
         <div class="experience-grid">
           <section class="console-panel">
             <div class="output-list" id="outputList" aria-live="polite"></div>
-
             <div class="suggestion-panel">
-              <span class="label">YOU COULD</span>
+              <span class="label">PODRÍAS</span>
               <div class="suggestion-list" id="suggestionList"></div>
             </div>
-
             <form class="command-form" id="commandForm">
-              <label for="commandInput">INTENTION</label>
+              <label for="commandInput">INTENCIÓN</label>
               <div class="command-row">
-                <input
-                  id="commandInput"
-                  type="text"
-                  autocomplete="off"
-                  spellcheck="false"
-                  placeholder="Write what Walter tries to do"
-                />
-                <button type="submit">Send</button>
+                <input id="commandInput" type="text" autocomplete="off" spellcheck="false" placeholder="Escribe qué intenta hacer Walter" />
+                <button type="submit">Enviar</button>
               </div>
-              <p class="command-help" id="commandHelp">The prototype accepts the suggested intentions for this scene.</p>
+              <p class="command-help" id="commandHelp">El prototipo acepta las intenciones sugeridas para esta escena.</p>
             </form>
           </section>
 
           <aside class="context-panel">
             <section class="map-section" aria-labelledby="mapLabel">
-              <span class="label" id="mapLabel">LOCAL MAP</span>
+              <span class="label" id="mapLabel">MAPA LOCAL</span>
               <div class="map-view" id="mapView" aria-live="polite"></div>
               <p class="map-caption" id="mapCaption"></p>
             </section>
-
             <section>
-              <span class="label">PARTY</span>
-              <div class="entity-card">
-                <div>
-                  <strong>Walter</strong>
-                  <small>Human Fighter · Lv. 1</small>
-                </div>
-                <span id="playerHp">12 / 12 HP</span>
-              </div>
+              <span class="label">GRUPO</span>
+              <div class="entity-card"><div><strong>Walter</strong><small>Guerrero humano · Nv. 1</small></div><span id="playerHp">12 / 12 PV</span></div>
             </section>
-
             <section id="nearbySection">
-              <span class="label">NEARBY</span>
+              <span class="label">CERCA</span>
               <div id="nearbyList" class="context-list"></div>
             </section>
-
             <section id="battleSection" hidden>
-              <span class="label">ENCOUNTER</span>
+              <span class="label">ENCUENTRO</span>
               <div id="battleList" class="context-list"></div>
               <p class="turn-indicator" id="turnIndicator"></p>
             </section>
-
             <section>
-              <span class="label">JOURNAL</span>
-              <div class="journal-entry" id="journalEntry">No discoveries yet.</div>
+              <span class="label">DIARIO</span>
+              <div class="journal-entry" id="journalEntry">Aún no hay descubrimientos.</div>
             </section>
-
-            <button class="secondary-action" id="restartButton" type="button">Restart prototype</button>
+            <button class="secondary-action" id="restartButton" type="button">Reiniciar prototipo</button>
           </aside>
         </div>
       </section>
