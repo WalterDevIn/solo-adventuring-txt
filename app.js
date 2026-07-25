@@ -1,446 +1,408 @@
-import { parseIntent } from "./src/intentParser.js";
-import { createGameEngine } from "./src/gameEngine.js";
-import { createBattleManager } from "./src/battleManager.js";
-import { createAudioPool } from "./src/audioPool.js";
-import { addDiceOutput, waitForDiceTimeline } from "./src/diceUi.js";
-import { highlightText } from "./src/textHighlighter.js";
-
-const setupScreen = document.querySelector("#setupScreen");
-const consoleScreen = document.querySelector("#consoleScreen");
-const characterList = document.querySelector("#characterList");
-const enemyList = document.querySelector("#enemyList");
-const encounterSummary = document.querySelector("#encounterSummary");
-const startBattleButton = document.querySelector("#startBattleButton");
+const introScreen = document.querySelector("#introScreen");
+const gameScreen = document.querySelector("#gameScreen");
+const beginButton = document.querySelector("#beginButton");
+const restartButton = document.querySelector("#restartButton");
 const commandForm = document.querySelector("#commandForm");
 const commandInput = document.querySelector("#commandInput");
-const commandHighlight = document.querySelector("#commandHighlight");
+const commandHelp = document.querySelector("#commandHelp");
 const outputList = document.querySelector("#outputList");
-const outputPlaceholder = document.querySelector("#outputPlaceholder");
+const suggestionList = document.querySelector("#suggestionList");
+const locationName = document.querySelector("#locationName");
+const timeLabel = document.querySelector("#timeLabel");
+const objectiveLabel = document.querySelector("#objectiveLabel");
+const nearbyList = document.querySelector("#nearbyList");
+const battleSection = document.querySelector("#battleSection");
+const battleList = document.querySelector("#battleList");
+const turnIndicator = document.querySelector("#turnIndicator");
+const playerHp = document.querySelector("#playerHp");
+const journalEntry = document.querySelector("#journalEntry");
 
-const CHARACTERS = [
-  {
-    id: "fighter",
-    name: "Walter",
-    role: "Human Fighter",
-    summary: "Reliable frontline combatant.",
-    hp: 12,
-    armorClass: 15,
-  },
-];
+const WAIT = 18;
 
-const ENEMIES = [
-  {
-    id: "green-slime",
-    name: "Green Slime",
-    role: "Ooze / CR 1/4",
-    summary: "Slow, corrosive and difficult to intimidate.",
-    hp: 8,
-    armorClass: 8,
+const scenes = {
+  arrival: {
+    location: "Mossfield",
+    time: "Morning · Light rain",
+    objective: "Speak with the Guide",
+    nearby: ["Guide · beside the eastern gate", "Nurse · inside the infirmary"],
+    journal: "No discoveries yet.",
+    messages: [
+      ["WORLD", "Rain gathers on the timber roofs of Mossfield. The eastern gate stands open."],
+      ["WORLD", "A hooded guide waits beneath the awning, watching the western road."],
+    ],
+    suggestions: [
+      { label: "Talk to the Guide", command: "talk to the guide", next: "guide" },
+      { label: "Inspect the gate", command: "inspect the gate", next: "gate" },
+    ],
   },
-  {
-    id: "cave-rat",
-    name: "Cave Rat",
-    role: "Beast / CR 0",
-    summary: "Fast and fragile. Dangerous in numbers.",
-    hp: 4,
-    armorClass: 12,
+  gate: {
+    location: "Mossfield · Eastern Gate",
+    time: "Morning · Light rain",
+    objective: "Speak with the Guide",
+    nearby: ["Guide · waiting nearby", "Fresh wagon tracks"],
+    journal: "The settlement is active, but the western road has been left unused.",
+    messages: [
+      ["WORLD", "The gate itself is undamaged. Wagon tracks enter from the east, but none leave toward the west."],
+      ["SYSTEM", "The world communicates danger before combat begins."],
+    ],
+    suggestions: [{ label: "Talk to the Guide", command: "talk to the guide", next: "guide" }],
   },
-];
-
-const selection = {
-  characterId: CHARACTERS[0]?.id ?? null,
-  enemyIds: new Set(),
+  guide: {
+    location: "Mossfield · Eastern Gate",
+    time: "Morning · Light rain",
+    objective: "Learn about the western ruin",
+    nearby: ["Guide · cautious", "Closed western road"],
+    journal: "The Guide believes something has occupied the old western ruin.",
+    messages: [
+      ["GUIDE", "You are the adventurer? Good. I need eyes on the old ruin, not another grave."],
+      ["GUIDE", "Three nights ago, something crossed the fields. Since then, the western road has gone silent."],
+    ],
+    suggestions: [
+      { label: "Ask about the ruin", command: "ask about the ruin", next: "briefing" },
+      { label: "Ask about the danger", command: "ask about the danger", next: "danger" },
+    ],
+  },
+  danger: {
+    location: "Mossfield · Eastern Gate",
+    time: "Morning · Light rain",
+    objective: "Learn about the western ruin",
+    nearby: ["Guide · uneasy", "Closed western road"],
+    journal: "The Guide heard dragging sounds and found corrosive residue near the road.",
+    messages: [
+      ["GUIDE", "No tracks I could trust. Only flattened grass and green residue that burned my glove."],
+      ["GUIDE", "If you see it, do not assume it thinks like a person."],
+    ],
+    suggestions: [{ label: "Ask about the ruin", command: "ask about the ruin", next: "briefing" }],
+  },
+  briefing: {
+    location: "Mossfield · Eastern Gate",
+    time: "Late morning",
+    objective: "Reach the western ruin",
+    nearby: ["Guide · mission offered", "Western road · available"],
+    journal: "New lead: inspect the western ruin and return with evidence.",
+    messages: [
+      ["GUIDE", "Follow the stone markers. The ruin is less than an hour away."],
+      ["SYSTEM", "New objective: Reach the western ruin."],
+      ["SYSTEM", "The prototype now shifts from conversation to travel without opening a separate map."],
+    ],
+    suggestions: [{ label: "Leave town", command: "leave town", next: "road" }],
+  },
+  road: {
+    location: "Western Road",
+    time: "Near noon · Rain fading",
+    objective: "Investigate the tracks",
+    nearby: ["Ruined stone marker", "Flattened grass", "Distant structure"],
+    journal: "The western road shows signs of a heavy creature moving toward the ruin.",
+    messages: [
+      ["WORLD", "Mossfield disappears behind wet grass and low hills."],
+      ["WORLD", "Near a broken marker, the grass has been pressed into a broad, glistening trail."],
+    ],
+    suggestions: [
+      { label: "Inspect the tracks", command: "inspect the tracks", next: "tracks" },
+      { label: "Continue to the ruin", command: "continue to the ruin", next: "ruin" },
+    ],
+  },
+  tracks: {
+    location: "Western Road",
+    time: "Near noon · Overcast",
+    objective: "Reach the western ruin",
+    nearby: ["Corrosive trail", "Ruin · west"],
+    journal: "Evidence found: a corrosive ooze traveled toward the ruin recently.",
+    messages: [
+      ["WORLD", "The trail is not mud. It is a thin membrane clinging to the grass."],
+      ["SYSTEM", "Evidence recorded: Corrosive residue."],
+    ],
+    suggestions: [{ label: "Continue to the ruin", command: "continue to the ruin", next: "ruin" }],
+  },
+  ruin: {
+    location: "Western Ruin · Courtyard",
+    time: "Noon",
+    objective: "Survive the encounter",
+    nearby: ["Collapsed arch", "Green Slime · blocking the passage"],
+    journal: "A Green Slime occupies the courtyard of the western ruin.",
+    battle: {
+      turn: "Walter's turn",
+      playerHp: "12 / 12 HP",
+      enemies: ["Green Slime · 8 / 8 HP · Near"],
+    },
+    messages: [
+      ["WORLD", "The ruin's courtyard is still except for a wet movement beneath the arch."],
+      ["ENEMY", "A Green Slime spreads across the passage and turns toward you."],
+      ["SYSTEM", "Encounter started. Walter acts first."],
+    ],
+    suggestions: [
+      { label: "Inspect the slime", command: "inspect the slime", next: "inspectSlime" },
+      { label: "Attack the slime", command: "attack the slime", next: "attackOne" },
+      { label: "Dodge", command: "dodge", next: "dodge" },
+    ],
+  },
+  inspectSlime: {
+    location: "Western Ruin · Courtyard",
+    time: "Noon",
+    objective: "Survive the encounter",
+    nearby: ["Collapsed arch", "Green Slime · blocking the passage"],
+    journal: "Green Slime: slow, corrosive, vulnerable to sustained attacks.",
+    battle: {
+      turn: "Walter's turn",
+      playerHp: "12 / 12 HP",
+      enemies: ["Green Slime · 8 / 8 HP · Near"],
+    },
+    messages: [
+      ["SYSTEM", "Green Slime · Slow movement · Corrosive body · No visible armor."],
+      ["WORLD", "It advances by folding over itself. The broken stones hiss where it passes."],
+    ],
+    suggestions: [
+      { label: "Attack the slime", command: "attack the slime", next: "attackOne" },
+      { label: "Dodge", command: "dodge", next: "dodge" },
+    ],
+  },
+  dodge: {
+    location: "Western Ruin · Courtyard",
+    time: "Noon",
+    objective: "Survive the encounter",
+    nearby: ["Collapsed arch", "Green Slime · exposed"],
+    journal: "The slime overextended after Walter evaded its attack.",
+    battle: {
+      turn: "Walter's turn",
+      playerHp: "12 / 12 HP",
+      enemies: ["Green Slime · 8 / 8 HP · Near · Exposed"],
+    },
+    messages: [
+      ["PLAYER", "Walter braces and gives ground."],
+      ["DICE", "Green Slime attack · d20 → 7 · Miss"],
+      ["WORLD", "The slime lashes across the stones and leaves its core exposed."],
+      ["SYSTEM", "Walter's turn."],
+    ],
+    suggestions: [{ label: "Attack the exposed slime", command: "attack the slime", next: "attackOne" }],
+  },
+  attackOne: {
+    location: "Western Ruin · Courtyard",
+    time: "Noon",
+    objective: "Defeat the Green Slime",
+    nearby: ["Collapsed arch", "Green Slime · wounded"],
+    journal: "The Green Slime is wounded but still blocks the ruin.",
+    battle: {
+      turn: "Walter's turn",
+      playerHp: "10 / 12 HP",
+      enemies: ["Green Slime · 3 / 8 HP · Near · Wounded"],
+    },
+    messages: [
+      ["PLAYER", "Walter steps inside the creature's reach and strikes."],
+      ["DICE", "Attack · d20 + 3 → 18 · Hit"],
+      ["DICE", "Damage · d6 + 2 → 5"],
+      ["ENEMY", "The slime recoils, then splashes against Walter's guard."],
+      ["DICE", "Green Slime attack · d20 → 15 · Hit · 2 damage"],
+      ["SYSTEM", "Walter's turn."],
+    ],
+    suggestions: [{ label: "Finish the slime", command: "attack the slime", next: "victory" }],
+  },
+  victory: {
+    location: "Western Ruin · Courtyard",
+    time: "Early afternoon",
+    objective: "Search the ruin",
+    nearby: ["Defeated Green Slime", "Open passage", "Collapsed chamber"],
+    journal: "The Green Slime was destroyed. The passage into the ruin is open.",
+    battle: null,
+    playerHp: "10 / 12 HP",
+    messages: [
+      ["PLAYER", "Walter drives the creature away from the passage and strikes its exposed core."],
+      ["DICE", "Attack · d20 + 3 → 21 · Hit"],
+      ["DICE", "Damage · d6 + 2 → 4"],
+      ["SYSTEM", "Victory. The encounter ends without leaving the narrative flow."],
+    ],
+    suggestions: [{ label: "Search the ruin", command: "search the ruin", next: "reward" }],
+  },
+  reward: {
+    location: "Western Ruin · Inner Chamber",
+    time: "Early afternoon",
+    objective: "Return to Mossfield",
+    nearby: ["Empty stone basin", "Broken supply chest", "Road home"],
+    journal: "Recovered evidence: a caravan seal and a corroded metal fragment.",
+    playerHp: "10 / 12 HP",
+    messages: [
+      ["WORLD", "Behind the slime lies a chamber used recently as a feeding ground."],
+      ["WORLD", "Among ruined packs you find a brass caravan seal and a fragment covered in the same green residue."],
+      ["SYSTEM", "Objective updated: Return to Mossfield."],
+    ],
+    suggestions: [{ label: "Return to Mossfield", command: "return to mossfield", next: "return" }],
+  },
+  return: {
+    location: "Mossfield",
+    time: "Evening",
+    objective: "Report to the Guide",
+    nearby: ["Guide · returned to the gate", "Nurse · treating a traveler"],
+    journal: "The caravan seal connects the western ruin to a missing trade group.",
+    playerHp: "10 / 12 HP",
+    messages: [
+      ["WORLD", "Mossfield is louder when you return. A damaged caravan arrived while you were away."],
+      ["SYSTEM", "While you were away: the Nurse treated an injured traveler; the Guide returned to the gate."],
+      ["GUIDE", "You came back. Show me what you found."],
+    ],
+    suggestions: [{ label: "Give the seal to the Guide", command: "give the seal to the guide", next: "ending" }],
+  },
+  ending: {
+    location: "Mossfield",
+    time: "Evening",
+    objective: "Prototype complete",
+    nearby: ["Guide · relieved", "Newly arrived caravan"],
+    journal: "Prototype complete: exploration, dialogue, combat and world change were presented through one interface.",
+    playerHp: "10 / 12 HP",
+    messages: [
+      ["GUIDE", "This belonged to the caravan we lost. The ruin was not the beginning of this."],
+      ["SYSTEM", "Quest completed: The Western Ruin."],
+      ["SYSTEM", "Evaluation point: did the interface make location, intent, consequence and world change clear?"],
+    ],
+    suggestions: [{ label: "Restart the prototype", command: "restart", action: "restart" }],
+  },
 };
 
-const PLACEHOLDER_INTERVAL = 420;
-const KEY_PRESS_AUDIO_PATH = "assets/audio/key-press.mp3";
-
-const typingQueue = [];
-const outputKeySound = createAudioPool({
-  src: KEY_PRESS_AUDIO_PATH,
-  size: 8,
-  volume: 0.18,
-  minPlaybackRate: 0.86,
-  maxPlaybackRate: 1.14,
-});
-const inputKeySound = createAudioPool({
-  src: KEY_PRESS_AUDIO_PATH,
-  size: 5,
-  volume: 0.18,
-  minPlaybackRate: 0.9,
-  maxPlaybackRate: 1.1,
-});
-const gameEngine = createGameEngine("CITY");
-const battleManager = createBattleManager();
-
-let isTyping = false;
-let isResolvingAction = false;
-let placeholderIndex = 0;
+let currentSceneId = "arrival";
+let isPresenting = false;
 
 function wait(milliseconds) {
   return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 }
 
-function createSelectionCard(entry, type) {
-  const isCharacter = type === "character";
-  const card = document.createElement("button");
-  card.className = "selection-card";
-  card.type = "button";
-  card.dataset.id = entry.id;
-  card.dataset.type = type;
-  card.setAttribute("aria-pressed", "false");
-  card.innerHTML = `
-    <span class="selection-card__marker">${isCharacter ? "@" : "×"}</span>
-    <span class="selection-card__body">
-      <strong>${entry.name}</strong>
-      <span>${entry.role}</span>
-      <small>${entry.summary}</small>
-    </span>
-    <span class="selection-card__stats">HP ${entry.hp}<br>AC ${entry.armorClass}</span>
-  `;
-
-  card.addEventListener("click", () => {
-    if (isCharacter) {
-      selection.characterId = entry.id;
-    } else if (selection.enemyIds.has(entry.id)) {
-      selection.enemyIds.delete(entry.id);
-    } else {
-      selection.enemyIds.add(entry.id);
-    }
-    renderSelections();
-  });
-
-  return card;
+function normalize(value) {
+  return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
-function renderSelectionLists() {
-  characterList.replaceChildren(
-    ...CHARACTERS.map((entry) => createSelectionCard(entry, "character")),
-  );
-  enemyList.replaceChildren(
-    ...ENEMIES.map((entry) => createSelectionCard(entry, "enemy")),
-  );
+function clearOutput() {
+  outputList.replaceChildren();
 }
 
-function renderSelections() {
-  document.querySelectorAll(".selection-card").forEach((card) => {
-    const selected = card.dataset.type === "character"
-      ? card.dataset.id === selection.characterId
-      : selection.enemyIds.has(card.dataset.id);
-    card.classList.toggle("is-selected", selected);
-    card.setAttribute("aria-pressed", String(selected));
-  });
+async function typeMessage(origin, text) {
+  const shell = document.createElement("article");
+  shell.className = `message message--${origin.toLowerCase()}`;
 
-  const character = CHARACTERS.find((entry) => entry.id === selection.characterId);
-  const enemies = ENEMIES.filter((entry) => selection.enemyIds.has(entry.id));
-  const valid = Boolean(character && enemies.length > 0 && !battleManager.hasActiveBattle());
+  const label = document.createElement("span");
+  label.className = "message-origin";
+  label.textContent = origin;
 
-  encounterSummary.textContent = battleManager.hasActiveBattle()
-    ? "An active battle already exists."
-    : valid
-      ? `${character.name} // ${enemies.map((enemy) => enemy.name).join(" + ")}`
-      : "Select at least one enemy.";
-  startBattleButton.disabled = !valid;
-}
-
-function updateEmptyState() {
-  outputPlaceholder.hidden = outputList.children.length !== 0;
-}
-
-function updateInputHighlight() {
-  commandHighlight.innerHTML = highlightText(commandInput.value || " ");
-  commandHighlight.scrollLeft = commandInput.scrollLeft;
-}
-
-function getTypingDelay(character) {
-  return /[.,;:!?]/.test(character) ? 65 : 24;
-}
-
-function isPrintableInputKey(event) {
-  return event.key.length === 1
-    && !event.ctrlKey
-    && !event.metaKey
-    && !event.altKey
-    && !event.isComposing;
-}
-
-function removeOldestOverflowingEntries(protectedShell = null) {
-  while (outputList.scrollHeight > outputList.clientHeight) {
-    const oldestShell = outputList.firstElementChild;
-    if (!oldestShell || oldestShell === protectedShell) break;
-    oldestShell.remove();
-  }
-  updateEmptyState();
-}
-
-async function waitForMessageEntrance(shell) {
-  const chat = window.__soloAdventuringChat;
-  if (chat?.waitForEntrance) {
-    await chat.waitForEntrance(shell);
-    return;
-  }
-
-  await new Promise((resolve) => requestAnimationFrame(resolve));
-  await window.__soloAdventuringChat?.waitForEntrance?.(shell);
-}
-
-async function typeEntry(shell, entry, text) {
-  entry.classList.add("is-typing");
-  let visibleText = "";
+  const body = document.createElement("p");
+  shell.append(label, body);
+  outputList.append(shell);
 
   for (const character of text) {
-    if (!shell.isConnected) return;
-    visibleText += character;
-    entry.innerHTML = highlightText(visibleText);
-    outputKeySound.play();
-    removeOldestOverflowingEntries(shell);
-    await wait(getTypingDelay(character));
+    body.textContent += character;
+    outputList.scrollTop = outputList.scrollHeight;
+    await wait(/[.,;:!?]/.test(character) ? WAIT * 2 : WAIT);
   }
-
-  entry.classList.remove("is-typing");
 }
 
-async function processTypingQueue() {
-  if (isTyping) return;
-  isTyping = true;
+function renderSuggestions(scene) {
+  suggestionList.replaceChildren();
 
-  while (typingQueue.length > 0) {
-    const { shell, entry, text, resolve } = typingQueue.shift();
-
-    try {
-      if (shell.isConnected) {
-        await waitForMessageEntrance(shell);
-        await typeEntry(shell, entry, text);
-      }
-    } finally {
-      resolve(shell);
-    }
-  }
-
-  isTyping = false;
-}
-
-function addOutput(text) {
-  outputPlaceholder.hidden = true;
-  const shell = document.createElement("div");
-  shell.className = "output-entry-shell";
-  shell.dataset.originator = "Dungeon Master";
-  shell.dataset.originKind = "dm";
-
-  const entry = document.createElement("p");
-  entry.className = "output-entry";
-  shell.append(entry);
-  outputList.append(shell);
-  removeOldestOverflowingEntries(shell);
-
-  const completion = new Promise((resolve) => {
-    typingQueue.push({ shell, entry, text, resolve });
-  });
-  processTypingQueue();
-  return completion;
-}
-
-function normalizeBattleCommand(command) {
-  return command.trim().toLowerCase().replace(/\s+/g, " ");
-}
-
-function parseUnarmedAttackCommand(command) {
-  const normalized = normalizeBattleCommand(command);
-  const match = normalized.match(
-    /^(?:attack|hit|punch|strike)(?:\s+(?:the\s+)?)?(.+?)(?:\s+with\s+(?:my\s+)?(?:hands|fists|bare hands))?$/i,
-  );
-  if (!match) return null;
-
-  const target = match[1]
-    .replace(/\s+with\s+(?:my\s+)?(?:hands|fists|bare hands)$/i, "")
-    .trim();
-  return target || null;
-}
-
-function describeAttackResult(result) {
-  if (!result.hit) {
-    return `${result.attackerName} misses ${result.targetName}. `
-      + `The target's AC is ${result.targetArmorClass}.`
-      + (result.nextActorName ? ` It is now ${result.nextActorName}'s turn.` : "");
-  }
-
-  const defeatedText = result.defeated ? ` ${result.targetName} is defeated.` : "";
-  const outcomeText = result.outcome ? ` Battle result: ${result.outcome}.` : "";
-  const nextTurnText = !result.outcome && result.nextActorName
-    ? ` It is now ${result.nextActorName}'s turn.`
-    : "";
-
-  return `${result.attackerName} hits ${result.targetName} for ${result.damage} damage. `
-    + `${result.targetName} has ${result.targetHealth} HP remaining.`
-    + defeatedText
-    + outcomeText
-    + nextTurnText;
-}
-
-async function renderUnarmedAttack(result) {
-  await addOutput(`You try to attack ${result.targetName}.`);
-
-  await addDiceOutput(result.attackRoll, {
-    actor: result.attackerName,
-    purpose: "Unarmed attack",
-  });
-
-  if (result.hit && result.damageRoll) {
-    await addDiceOutput(result.damageRoll, {
-      actor: result.attackerName,
-      purpose: "Unarmed damage",
+  for (const suggestion of scene.suggestions) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = suggestion.label;
+    button.addEventListener("click", () => {
+      commandInput.value = suggestion.command;
+      commandInput.focus();
     });
+    suggestionList.append(button);
   }
-
-  await waitForDiceTimeline();
-  await addOutput(describeAttackResult(result));
 }
 
-function processBattleCommand(command) {
-  const normalized = normalizeBattleCommand(command);
-  const attackTarget = parseUnarmedAttackCommand(command);
+function renderContext(scene) {
+  locationName.textContent = scene.location;
+  timeLabel.textContent = scene.time;
+  objectiveLabel.textContent = scene.objective;
+  journalEntry.textContent = scene.journal;
+  playerHp.textContent = scene.playerHp ?? scene.battle?.playerHp ?? "12 / 12 HP";
 
-  if (attackTarget) {
-    const result = battleManager.performUnarmedAttack(attackTarget);
-    return { handled: true, kind: "UNARMED_ATTACK", result };
+  nearbyList.replaceChildren(
+    ...scene.nearby.map((item) => {
+      const element = document.createElement("div");
+      element.textContent = item;
+      return element;
+    }),
+  );
+
+  if (scene.battle) {
+    battleSection.hidden = false;
+    battleList.replaceChildren(
+      ...scene.battle.enemies.map((item) => {
+        const element = document.createElement("div");
+        element.textContent = item;
+        return element;
+      }),
+    );
+    turnIndicator.textContent = scene.battle.turn;
+  } else {
+    battleSection.hidden = true;
+    battleList.replaceChildren();
+    turnIndicator.textContent = "";
   }
-
-  if (["battle", "battle status", "status", "list battle", "turn status"].includes(normalized)) {
-    return { handled: true, message: battleManager.describeActiveBattle() };
-  }
-
-  if (["pass", "pass turn", "end turn", "skip turn", "wait turn"].includes(normalized)) {
-    const result = battleManager.passCurrentTurn();
-    return { handled: true, message: result.message };
-  }
-
-  if (["leave battle", "leave combat", "exit battle view"].includes(normalized)) {
-    const result = battleManager.leaveBattleView();
-    return { handled: true, message: result.message };
-  }
-
-  if (["enter battle", "enter combat", "return to battle"].includes(normalized)) {
-    const result = battleManager.enterBattleView();
-    return { handled: true, message: result.message };
-  }
-
-  return { handled: false, message: "" };
 }
 
-async function processCommand(command) {
-  const battleResult = processBattleCommand(command);
+async function presentScene(sceneId) {
+  const scene = scenes[sceneId];
+  if (!scene || isPresenting) return;
 
-  if (battleResult.handled) {
-    if (battleResult.kind === "UNARMED_ATTACK") {
-      if (!battleResult.result.ok) {
-        await addOutput(battleResult.result.message);
-      } else {
-        await renderUnarmedAttack(battleResult.result);
-      }
-      return;
-    }
+  currentSceneId = sceneId;
+  isPresenting = true;
+  commandInput.disabled = true;
+  clearOutput();
+  renderContext(scene);
+  renderSuggestions(scene);
 
-    await addOutput(battleResult.message);
+  for (const [origin, text] of scene.messages) {
+    await typeMessage(origin, text);
+  }
+
+  commandInput.disabled = false;
+  commandInput.value = "";
+  commandInput.focus();
+  commandHelp.textContent = "Choose a suggestion or write the equivalent intention.";
+  isPresenting = false;
+}
+
+async function submitIntention(rawCommand) {
+  const scene = scenes[currentSceneId];
+  const normalizedCommand = normalize(rawCommand);
+  const match = scene.suggestions.find(
+    (suggestion) => normalize(suggestion.command) === normalizedCommand,
+  );
+
+  if (!match) {
+    commandHelp.textContent = "That intention is outside this scripted scene. Use one of the contextual suggestions.";
+    commandInput.select();
     return;
   }
 
-  const intent = parseIntent(command);
-  const result = gameEngine.processIntent(intent);
-  console.debug("Command intent", intent);
-  console.debug("Game result", result);
-  await addOutput(result.message);
-}
-
-function createInitiativeRoll(participant) {
-  const initiative = participant.components.Initiative;
-  return {
-    type: "DIE_ROLLED",
-    count: 1,
-    sides: 20,
-    modifier: initiative.modifier,
-    rolls: [initiative.roll],
-    adjustedRolls: [initiative.total],
-    raw: initiative.roll,
-    total: initiative.total,
-    expression: initiative.modifier === 0
-      ? "d20"
-      : `d20 ${initiative.modifier > 0 ? "+" : "-"} ${Math.abs(initiative.modifier)}`,
-  };
-}
-
-async function renderInitiativeRolls(battle) {
-  const rolls = [];
-
-  for (const entityId of battle.components.BattleParticipants.entityIds) {
-    const participant = battle.entities[entityId];
-    rolls.push(addDiceOutput(createInitiativeRoll(participant), {
-      actor: participant.components.Identity.name,
-      purpose: "Initiative",
-    }));
+  if (match.action === "restart") {
+    restartPrototype();
+    return;
   }
 
-  await Promise.all(rolls);
+  await presentScene(match.next);
 }
 
-async function startCombatPrototype() {
-  const character = CHARACTERS.find((entry) => entry.id === selection.characterId);
-  const enemies = ENEMIES.filter((entry) => selection.enemyIds.has(entry.id));
-  if (!character || enemies.length === 0 || battleManager.hasActiveBattle()) return;
-
-  commandInput.disabled = true;
-  startBattleButton.disabled = true;
-  isResolvingAction = true;
-
-  try {
-    const battle = battleManager.createBattle({ character, enemies });
-    const currentActor = battleManager.getCurrentActor();
-    const initiativeOrder = battleManager.getInitiativeOrder();
-    const orderSummary = initiativeOrder
-      .map((entry, index) => `${index + 1}. ${entry.name}`)
-      .join(" · ");
-
-    setupScreen.hidden = true;
-    consoleScreen.hidden = false;
-
-    await renderInitiativeRolls(battle);
-    await waitForDiceTimeline();
-    await addOutput(
-      `Initiative order: ${orderSummary}.\n`
-      + `Round 1 begins. It is ${currentActor.components.Identity.name}'s turn.\n`
-      + `Use "attack slime", "punch rat", or "pass".`,
-    );
-  } catch (error) {
-    console.error("Failed to start combat", error);
-    setupScreen.hidden = false;
-    consoleScreen.hidden = true;
-    battleManager.clearBattle();
-    renderSelections();
-  } finally {
-    isResolvingAction = false;
-    commandInput.disabled = false;
-    commandInput.focus();
-  }
+function startPrototype() {
+  introScreen.hidden = true;
+  gameScreen.hidden = false;
+  presentScene("arrival");
 }
 
-window.setInterval(() => {
-  const states = [".", "..", "..."];
-  placeholderIndex = (placeholderIndex + 1) % states.length;
-  outputPlaceholder.textContent = states[placeholderIndex];
-}, PLACEHOLDER_INTERVAL);
+function restartPrototype() {
+  currentSceneId = "arrival";
+  isPresenting = false;
+  clearOutput();
+  gameScreen.hidden = true;
+  introScreen.hidden = false;
+  commandInput.value = "";
+  commandHelp.textContent = "The prototype accepts the suggested intentions for this scene.";
+  beginButton.focus();
+}
 
-startBattleButton.addEventListener("click", () => {
-  startCombatPrototype();
-});
+beginButton.addEventListener("click", startPrototype);
+restartButton.addEventListener("click", restartPrototype);
 
-commandInput.addEventListener("keydown", (event) => {
-  if (isPrintableInputKey(event)) inputKeySound.play();
-});
-commandInput.addEventListener("input", updateInputHighlight);
-commandInput.addEventListener("scroll", updateInputHighlight);
-
-commandForm.addEventListener("submit", async (event) => {
+commandForm.addEventListener("submit", (event) => {
   event.preventDefault();
-  if (isResolvingAction) return;
+  if (isPresenting) return;
 
   const command = commandInput.value.trim();
   if (!command) {
@@ -448,35 +410,5 @@ commandForm.addEventListener("submit", async (event) => {
     return;
   }
 
-  commandInput.value = "";
-  updateInputHighlight();
-  commandInput.disabled = true;
-  isResolvingAction = true;
-
-  try {
-    await processCommand(command);
-  } finally {
-    isResolvingAction = false;
-    commandInput.disabled = false;
-    commandInput.focus();
-  }
+  submitIntention(command);
 });
-
-window.addEventListener("resize", () => {
-  removeOldestOverflowingEntries();
-  updateInputHighlight();
-});
-
-window.addEventListener("load", () => {
-  renderSelectionLists();
-  renderSelections();
-  updateEmptyState();
-  updateInputHighlight();
-});
-
-window.__soloAdventuringDebug = {
-  battleManager,
-  getActiveBattle: () => battleManager.getActiveBattle(),
-  getCurrentActor: () => battleManager.getCurrentActor(),
-  getInitiativeOrder: () => battleManager.getInitiativeOrder(),
-};
