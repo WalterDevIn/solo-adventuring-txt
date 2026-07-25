@@ -1,0 +1,45 @@
+.message--guia {
+  border-left-color: var(--npc);
+}
+
+.message--guia .message-origin {
+  color: var(--npc);
+}
+
+.message--sistema,
+.message--dados {
+  border-left-color: var(--system);
+}
+
+.message--sistema .message-origin,
+.message--dados .message-origin {
+  color: var(--system);
+}
+
+.message--intencion-enemiga {
+  border-left-color: var(--hostile);
+  background: rgba(255, 185, 185, 0.035);
+}
+
+.message--intencion-enemiga .message-origin {
+  color: var(--hostile);
+}
+
+.message--intencion-del-jugador {
+  margin-left: auto;
+  padding: 11px 14px;
+  text-align: left;
+  border-left: 0;
+  border-right: 2px solid var(--accent);
+  background: rgba(220, 236, 255, 0.075);
+}
+
+.message--intencion-del-jugador .message-origin {
+  display: block;
+  text-align: right;
+  color: var(--accent);
+}
+
+.message--intencion-del-jugador p {
+  text-align: right;
+}
