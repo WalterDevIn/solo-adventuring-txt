@@ -5,52 +5,25 @@ const mapLabel = document.querySelector("#mapLabel");
 const mapView = document.querySelector("#mapView");
 const mapCaption = document.querySelector("#mapCaption");
 
-const COLORS = {
-  line: "#77828d",
-  faint: "#38414a",
-  text: "#dcecff",
-  muted: "#9aa6b2",
-  player: "#dcecff",
-  enemy: "#ffb9b9",
-  destination: "#b8ffc9",
-  background: "#080b0f",
-};
+const stroke = "rgba(225,235,244,.72)";
+const muted = "#8f9ba7";
+const bright = "#f2f5f7";
+const accent = "#dcecff";
+const hostile = "#ffb9b9";
 
 function pin(x, y, label, active = false) {
-  const fill = active ? COLORS.player : COLORS.background;
-  const stroke = active ? COLORS.player : COLORS.line;
-  const text = active ? COLORS.text : COLORS.muted;
-  return `
-    <g transform="translate(${x} ${y})">
-      <line x1="0" y1="0" x2="0" y2="12" stroke="${stroke}" stroke-width="1.5"></line>
-      <circle cx="0" cy="0" r="4" fill="${fill}" stroke="${stroke}" stroke-width="1.5"></circle>
-      <text x="7" y="3" fill="${text}" font-size="7">${label}</text>
-    </g>
-  `;
-}
-
-function setMapMarkup(markup) {
-  if (!mapView) return;
-  mapView.innerHTML = markup;
-  mapView.dataset.rendered = "true";
+  return `<g transform="translate(${x} ${y})"><line x1="0" y1="0" x2="0" y2="11" stroke="${stroke}"/><circle cx="0" cy="0" r="4" fill="${active ? accent : "#050608"}" stroke="${active ? accent : stroke}"/><text x="7" y="3" fill="${active ? bright : muted}" font-size="8">${label}</text></g>`;
 }
 
 function renderSettlementMap(location) {
-  const active = location.includes("Gate") ? "gate" : "square";
-  mapLabel.textContent = "SETTLEMENT";
-  mapCaption.textContent = "Relevant places only";
-  setMapMarkup(`
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 210 138" width="100%" height="100%" role="img" aria-label="Point map of Mossfield">
-      <rect x="1" y="1" width="208" height="136" fill="${COLORS.background}" stroke="${COLORS.faint}" stroke-width="2"></rect>
-      <path d="M24 107 L69 87 L111 94 L165 45" fill="none" stroke="${COLORS.line}" stroke-width="1.5"></path>
-      <path d="M69 87 L55 38" fill="none" stroke="${COLORS.line}" stroke-width="1.5"></path>
-      ${pin(24, 107, "Gate", active === "gate")}
-      ${pin(69, 87, "Square", active === "square")}
-      ${pin(55, 38, "Infirmary")}
-      ${pin(111, 94, "Inn")}
-      ${pin(165, 45, "West road")}
-    </svg>
-  `);
+  const active = location.includes("Puerta") ? "gate" : "square";
+  mapLabel.textContent = "ASENTAMIENTO";
+  mapCaption.textContent = "Solo se muestran los lugares relevantes";
+  mapView.innerHTML = `<svg viewBox="0 0 210 138" role="img" aria-label="Mapa de puntos de Mossfield">
+    <rect x="1" y="1" width="208" height="136" fill="none" stroke="rgba(225,235,244,.35)"/>
+    <path d="M24 107 L69 87 L111 94 L165 45 M69 87 L55 38" fill="none" stroke="${stroke}" stroke-width="1.5"/>
+    ${pin(24,107,"Puerta",active === "gate")}${pin(69,87,"Plaza",active === "square")}${pin(55,38,"Enfermería")}${pin(111,94,"Posada")}${pin(165,45,"Camino oeste")}
+  </svg>`;
 }
 
 function hexPoints(cx, cy, radius) {
@@ -60,12 +33,9 @@ function hexPoints(cx, cy, radius) {
   }).join(" ");
 }
 
-function renderTravelMap(location) {
-  mapLabel.textContent = "TRAVEL · 3 MI / HEX";
-  mapCaption.textContent = location.includes("Western Road")
-    ? "Walter is one hex west of Mossfield"
-    : "Lowlands route";
-
+function renderTravelMap() {
+  mapLabel.textContent = "VIAJE · 3 MILLAS / HEX";
+  mapCaption.textContent = "Walter está a un hexágono al oeste de Mossfield";
   const hexes = [];
   const radius = 21;
   for (let row = 0; row < 3; row += 1) {
@@ -74,71 +44,40 @@ function renderTravelMap(location) {
       const cy = 28 + row * 32;
       const active = row === 1 && col === 1;
       const destination = row === 1 && col === 3;
-      const stroke = destination ? COLORS.destination : active ? COLORS.player : COLORS.line;
-      const fill = active ? "#1b2630" : COLORS.background;
-      const dash = destination ? 'stroke-dasharray="4 3"' : "";
-      hexes.push(`<polygon points="${hexPoints(cx, cy, radius)}" fill="${fill}" stroke="${stroke}" stroke-width="1.5" ${dash}></polygon>`);
-      if (active) hexes.push(`<text x="${cx}" y="${cy + 3}" fill="${COLORS.text}" font-size="10" text-anchor="middle">@</text>`);
-      if (destination) hexes.push(`<text x="${cx}" y="${cy + 3}" fill="${COLORS.destination}" font-size="10" text-anchor="middle">R</text>`);
+      hexes.push(`<polygon points="${hexPoints(cx,cy,radius)}" fill="${active ? "rgba(220,236,255,.2)" : "rgba(255,255,255,.025)"}" stroke="${destination ? "#b8ffc9" : active ? accent : stroke}" stroke-width="1.2" ${destination ? 'stroke-dasharray="4 3"' : ""}/>`);
+      if (active) hexes.push(`<text x="${cx}" y="${cy + 4}" fill="${bright}" font-size="11" text-anchor="middle">@</text>`);
+      if (destination) hexes.push(`<text x="${cx}" y="${cy + 4}" fill="${bright}" font-size="10" text-anchor="middle">R</text>`);
     }
   }
-
-  setMapMarkup(`
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 120" width="100%" height="100%" role="img" aria-label="Hex travel map with three-mile hexes">
-      <rect width="180" height="120" fill="${COLORS.background}"></rect>
-      ${hexes.join("")}
-      <text x="8" y="114" fill="${COLORS.muted}" font-size="7">Mossfield ←  ·  Ruin R</text>
-    </svg>
-  `);
+  mapView.innerHTML = `<svg viewBox="0 0 180 120" role="img" aria-label="Mapa hexagonal de viaje">${hexes.join("")}<text x="8" y="114" fill="${muted}" font-size="8">Mossfield ← · Ruina R</text></svg>`;
 }
 
 function renderCombatMap(objective) {
-  const defeated = objective.includes("Search") || objective.includes("Return");
-  mapLabel.textContent = "POSITION · 5 FT / CELL";
-  mapCaption.textContent = defeated ? "Courtyard secured" : "Walter and the slime are adjacent";
-
+  const defeated = objective.includes("Registrar") || objective.includes("Regresar");
+  mapLabel.textContent = "POSICIÓN · 5 PIES / CASILLA";
+  mapCaption.textContent = defeated ? "Patio asegurado" : "Walter y la Baba están adyacentes";
   const cells = [];
   for (let row = 0; row < 6; row += 1) {
-    for (let col = 0; col < 6; col += 1) {
-      cells.push(`<rect x="${col * 24}" y="${row * 24}" width="24" height="24" fill="${COLORS.background}" stroke="${COLORS.faint}" stroke-width="1"></rect>`);
-    }
+    for (let col = 0; col < 6; col += 1) cells.push(`<rect x="${col * 24}" y="${row * 24}" width="24" height="24" fill="rgba(255,255,255,.02)" stroke="rgba(225,235,244,.38)"/>`);
   }
-
-  setMapMarkup(`
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 144 144" width="100%" height="100%" role="img" aria-label="Combat grid with Walter and Green Slime">
-      ${cells.join("")}
-      <rect x="96" y="0" width="48" height="24" fill="#26303a" stroke="${COLORS.line}"></rect>
-      <rect x="0" y="120" width="48" height="24" fill="#26303a" stroke="${COLORS.line}"></rect>
-      <g transform="translate(60 84)">
-        <circle r="9" fill="${COLORS.player}" stroke="#ffffff" stroke-width="1.5"></circle>
-        <text y="3" fill="#050608" font-size="8" font-weight="bold" text-anchor="middle">W</text>
-      </g>
-      ${defeated ? "" : `<g transform="translate(84 84)"><circle r="10" fill="${COLORS.enemy}" stroke="#ffffff" stroke-width="1.5"></circle><text y="3" fill="#050608" font-size="8" font-weight="bold" text-anchor="middle">S</text></g>`}
-    </svg>
-  `);
+  mapView.innerHTML = `<svg viewBox="0 0 144 144" role="img" aria-label="Cuadrícula de combate con Walter y la Baba verde">${cells.join("")}
+    <rect x="96" y="0" width="48" height="24" fill="rgba(225,235,244,.18)" stroke="${stroke}"/><rect x="0" y="120" width="48" height="24" fill="rgba(225,235,244,.18)" stroke="${stroke}"/>
+    <g transform="translate(60 84)"><circle r="9" fill="${accent}"/><text y="3" fill="#050608" font-size="8" font-weight="bold" text-anchor="middle">W</text></g>
+    ${defeated ? "" : `<g transform="translate(84 84)"><circle r="10" fill="${hostile}"/><text y="3" fill="#050608" font-size="8" font-weight="bold" text-anchor="middle">B</text></g>`}
+  </svg>`;
 }
 
-export function renderContextMap({ location, objective, inBattle }) {
-  if (!mapView || !mapLabel || !mapCaption) return;
-  if (inBattle || location.includes("Western Ruin")) renderCombatMap(objective);
-  else if (location.includes("Road") || location.includes("Lowlands")) renderTravelMap(location);
-  else renderSettlementMap(location);
+function renderMap() {
+  if (!locationName || !mapView || !mapLabel || !mapCaption) return;
+  const location = locationName.textContent || "";
+  const objective = objectiveLabel?.textContent || "";
+  const inBattle = battleSection && !battleSection.hidden;
+  if (inBattle || location.includes("Ruina occidental")) return renderCombatMap(objective);
+  if (location.includes("Camino") || location.includes("Tierras bajas")) return renderTravelMap();
+  renderSettlementMap(location);
 }
 
-let lastSignature = "";
-function renderFromDom() {
-  const context = {
-    location: locationName?.textContent || "Mossfield",
-    objective: objectiveLabel?.textContent || "",
-    inBattle: Boolean(battleSection && !battleSection.hidden),
-  };
-  const signature = JSON.stringify(context);
-  if (signature === lastSignature && mapView?.dataset.rendered === "true") return;
-  lastSignature = signature;
-  renderContextMap(context);
-}
-
-renderFromDom();
-document.addEventListener("DOMContentLoaded", renderFromDom);
-window.addEventListener("load", renderFromDom);
-window.setInterval(renderFromDom, 120);
+window.renderContextMap = renderMap;
+window.addEventListener("DOMContentLoaded", renderMap);
+window.addEventListener("load", renderMap);
+window.setInterval(renderMap, 120);
