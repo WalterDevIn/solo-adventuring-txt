@@ -3,93 +3,120 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta
-      name="description"
-      content="Interfaz experimental para un RPG de texto retro neón."
-    />
-    <title>Solo Adventuring</title>
-    <link rel="stylesheet" href="styles.css" />
-    <link rel="stylesheet" href="setup.css" />
-    <link rel="stylesheet" href="dice.css" />
-    <link rel="stylesheet" href="chat.css" />
-    <script src="src/adminCommands.js" type="module"></script>
-    <script src="src/creatureAttacks.js" type="module"></script>
+    <meta name="description" content="Prototipo guionado de experiencia para Solo Adventuring." />
+    <title>Solo Adventuring — Player Experience Prototype</title>
+    <link rel="stylesheet" href="experience.css" />
     <script src="app.js" type="module"></script>
-    <script src="src/diceUi.js" type="module"></script>
-    <script src="src/chatUi.js" type="module"></script>
   </head>
   <body>
-    <main class="game-shell" aria-label="Interfaz del juego de rol de texto">
-      <section class="setup-screen" id="setupScreen" aria-labelledby="setupTitle">
-        <header class="setup-header">
-          <p class="eyebrow">COMBAT PROTOTYPE / 00</p>
-          <h1 id="setupTitle">Configure encounter</h1>
-          <p>Select one character and at least one enemy.</p>
-        </header>
+    <main class="prototype-shell">
+      <section class="intro-screen" id="introScreen">
+        <p class="eyebrow">PLAYER EXPERIENCE PROTOTYPE / 01</p>
+        <h1>Solo Adventuring</h1>
+        <p class="intro-copy">
+          Una experiencia guionada para evaluar cómo se siente explorar, conversar y combatir
+          antes de construir la simulación real.
+        </p>
 
-        <div class="setup-grid">
-          <section class="selection-panel" aria-labelledby="characterTitle">
-            <div class="panel-heading">
-              <span>01</span>
-              <h2 id="characterTitle">Character</h2>
+        <div class="intro-grid">
+          <article class="character-card is-selected">
+            <span class="card-index">01</span>
+            <div>
+              <strong>Walter</strong>
+              <span>Human Fighter · Level 1</span>
+              <small>Resistente, directo y preparado para abrir camino.</small>
             </div>
-            <div class="selection-list" id="characterList"></div>
-          </section>
+            <div class="compact-stats">
+              <span>HP 12/12</span>
+              <span>AC 15</span>
+            </div>
+          </article>
 
-          <section class="selection-panel" aria-labelledby="enemyTitle">
-            <div class="panel-heading">
-              <span>02</span>
-              <h2 id="enemyTitle">Enemies</h2>
+          <article class="mission-card">
+            <span class="card-index">02</span>
+            <div>
+              <strong>The Western Ruin</strong>
+              <span>Mossfield · Lowlands</span>
+              <small>Una guía local necesita saber qué ocurrió en una ruina cercana.</small>
             </div>
-            <div class="selection-list" id="enemyList"></div>
-          </section>
+          </article>
         </div>
 
-        <footer class="setup-footer">
-          <div class="encounter-summary" id="encounterSummary" aria-live="polite"></div>
-          <button class="start-button" id="startBattleButton" type="button" disabled>
-            Start combat
-          </button>
-        </footer>
+        <button class="primary-action" id="beginButton" type="button">Begin scripted journey</button>
       </section>
 
-      <section class="console-layout" id="consoleScreen" hidden>
-        <div class="console-stack">
-          <section
-            class="console-box console-box--output"
-            id="outputBox"
-            aria-live="polite"
-          >
-            <div class="output-list" id="outputList"></div>
-            <p class="output-placeholder" id="outputPlaceholder" aria-hidden="true">.</p>
+      <section class="game-screen" id="gameScreen" hidden>
+        <header class="world-bar">
+          <div>
+            <span class="label">LOCATION</span>
+            <strong id="locationName">Mossfield</strong>
+          </div>
+          <div>
+            <span class="label">TIME</span>
+            <strong id="timeLabel">Morning</strong>
+          </div>
+          <div>
+            <span class="label">OBJECTIVE</span>
+            <strong id="objectiveLabel">Speak with the Guide</strong>
+          </div>
+        </header>
+
+        <div class="experience-grid">
+          <section class="console-panel">
+            <div class="output-list" id="outputList" aria-live="polite"></div>
+
+            <div class="suggestion-panel">
+              <span class="label">YOU COULD</span>
+              <div class="suggestion-list" id="suggestionList"></div>
+            </div>
+
+            <form class="command-form" id="commandForm">
+              <label for="commandInput">INTENTION</label>
+              <div class="command-row">
+                <input
+                  id="commandInput"
+                  type="text"
+                  autocomplete="off"
+                  spellcheck="false"
+                  placeholder="Write what Walter tries to do"
+                />
+                <button type="submit">Send</button>
+              </div>
+              <p class="command-help" id="commandHelp">The prototype accepts the suggested intentions for this scene.</p>
+            </form>
           </section>
 
-          <form class="console-box console-box--input" id="commandForm">
-            <div class="command-highlight" id="commandHighlight" aria-hidden="true"></div>
-            <input
-              id="commandInput"
-              name="command"
-              type="text"
-              autocomplete="off"
-              spellcheck="false"
-              aria-label="Comando"
-            />
-          </form>
-        </div>
+          <aside class="context-panel">
+            <section>
+              <span class="label">PARTY</span>
+              <div class="entity-card">
+                <div>
+                  <strong>Walter</strong>
+                  <small>Human Fighter · Lv. 1</small>
+                </div>
+                <span id="playerHp">12 / 12 HP</span>
+              </div>
+            </section>
 
-        <aside class="marker-rail" aria-label="Marcadores">
-          <div class="marker-stack" aria-hidden="true">
-            <span>◇</span>
-            <span>+</span>
-            <span>::</span>
-            <span>×</span>
-            <span>⌁</span>
-            <span>#</span>
-            <span>[ ]</span>
-            <span>!</span>
-            <span>·</span>
-          </div>
-        </aside>
+            <section id="nearbySection">
+              <span class="label">NEARBY</span>
+              <div id="nearbyList" class="context-list"></div>
+            </section>
+
+            <section id="battleSection" hidden>
+              <span class="label">ENCOUNTER</span>
+              <div id="battleList" class="context-list"></div>
+              <p class="turn-indicator" id="turnIndicator"></p>
+            </section>
+
+            <section>
+              <span class="label">JOURNAL</span>
+              <div class="journal-entry" id="journalEntry">No discoveries yet.</div>
+            </section>
+
+            <button class="secondary-action" id="restartButton" type="button">Restart prototype</button>
+          </aside>
+        </div>
       </section>
     </main>
   </body>
