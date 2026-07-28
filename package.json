@@ -1,0 +1,10 @@
+{
+  "name": "solo-adventuring-txt",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node -e \"import('node:http').then(({createServer})=>import('node:fs').then(({createReadStream,existsSync})=>{const pathMap=(url)=>url==='/'?'client/public/index.html':url.startsWith('/src/')?'client'+url:'client/public'+url;createServer((req,res)=>{const path=pathMap(req.url.split('?')[0]);if(!existsSync(path)){res.writeHead(404);return res.end('Not found');}const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8'};const ext=path.slice(path.lastIndexOf('.'));res.setHeader('Content-Type',types[ext]||'application/octet-stream');createReadStream(path).pipe(res);}).listen(5173,'0.0.0.0',()=>console.log('Solo Adventuring: http://localhost:5173'));}))\"",
+    "test": "node --test client/tests/*.test.js"
+  }
+}

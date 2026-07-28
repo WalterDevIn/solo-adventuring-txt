@@ -2,9 +2,27 @@
 
 Base de desarrollo para un RPG de texto con simulación autoritativa en servidor.
 
-## Estructura
+## Requisitos
 
-- `client/`: interfaz, presentación y emisión de intenciones.
-- `server/`: estado autoritativo, reglas y simulación.
-- `shared/`: contratos y tipos compartidos entre cliente y servidor.
-- `docs/`: pautas de arquitectura y desarrollo para futuras iteraciones.
+- Node.js 20 o superior.
+- npm 10 o superior.
+
+## Instalar
+
+```bash
+npm install
+```
+
+## Ejecutar el cliente
+
+```bash
+npm run dev
+```
+
+El cliente queda disponible en `http://localhost:5173`.
+
+## Ejecutar las pruebas
+
+```bash
+npm test
+```
