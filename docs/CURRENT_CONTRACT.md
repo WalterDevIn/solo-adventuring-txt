@@ -3,19 +3,19 @@
 ## Estado
 
 ```text
-EMPTY
+READY
 ```
 
 ## Contrato
 
 ```text
-Ninguno
+docs/contracts/001-client-foundation.md
 ```
 
 ## Rama esperada
 
 ```text
-Ninguna
+feature/001-client-foundation
 ```
 
 ## Último contrato aceptado
@@ -26,20 +26,16 @@ Ninguno
 
 ## Instrucción para el planificador
 
-Revisar:
+No crear otro contrato mientras este permanezca en estado `READY`, `IN_PROGRESS`, `BLOCKED` o `AWAITING_REVIEW`.
 
-```text
-docs/AI_FRONTEND_WORKFLOW.md
-docs/FRONTEND_STAGE_1_PLAN.md
-docs/ARCHITECTURE.md
-docs/PRODUCT_DECISIONS.md
-docs/CHAT_UI_DECISIONS.md
-```
-
-Luego inspeccionar el estado real del repositorio y preparar el primer contrato de la etapa del frontend.
+Cuando la implementación quede en `AWAITING_REVIEW`, inspeccionar el código real y el informe antes de aceptar, corregir o reemplazar el contrato.
 
 ## Instrucción para el implementador
 
-No comenzar ninguna implementación mientras el estado sea `EMPTY`.
-
-Cuando exista un contrato `READY`, leer el archivo señalado, cambiar este estado a `IN_PROGRESS` al comenzar y seguir exclusivamente ese contrato.
+1. Leer `docs/contracts/001-client-foundation.md` y toda su documentación obligatoria.
+2. Crear o usar exclusivamente la rama `feature/001-client-foundation`.
+3. Cambiar este estado a `IN_PROGRESS` al comenzar.
+4. Implementar únicamente el alcance del contrato.
+5. Crear `docs/contracts/reports/001-client-foundation.md`.
+6. Cambiar este estado a `AWAITING_REVIEW` al terminar.
+7. No marcar el contrato como `ACCEPTED`.
