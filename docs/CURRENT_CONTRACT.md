@@ -3,55 +3,45 @@
 ## Estado
 
 ```text
-BLOCKED
+AWAITING_REVIEW
 ```
 
 ## Contrato
 
 ```text
-docs/contracts/002-browser-css-loading.md
+docs/contracts/003-app-shell.md
 ```
 
 ## Rama esperada
 
 ```text
-feature/002-browser-css-loading
+feature/003-app-shell
 ```
 
 ## Rama base requerida
 
 ```text
-feature/001-client-foundation
+feature/002-browser-css-loading
 ```
 
 ## Último contrato aceptado
 
 ```text
-Ninguno
+docs/contracts/002-browser-css-loading.md
 ```
 
-## Contrato anterior no aceptado
+La corrección fue revisada estructuralmente y validada por el usuario en un navegador real. La página carga contenido visible y ya no presenta los errores MIME causados por importar CSS como módulos JavaScript.
 
-```text
-docs/contracts/001-client-foundation.md
-```
-
-Motivo: la implementación carga archivos CSS mediante importaciones de módulos JavaScript sin bundler. El navegador rechaza `reset.css` y `base.css` por MIME estricto, no ejecuta el bootstrap y muestra una página vacía.
-
-## Bloqueo actual
-
-La corrección está implementada y las pruebas estructurales y HTTP pasan, pero el entorno de ejecución bloquea toda navegación de Chromium con `net::ERR_BLOCKED_BY_ADMINISTRATOR`. Falta completar la validación obligatoria en navegador real antes de pasar a `AWAITING_REVIEW`.
+El contrato `001-client-foundation` se considera recuperado mediante la corrección aceptada de `002-browser-css-loading`.
 
 ## Instrucción para el planificador
 
 No crear otro contrato mientras este permanezca en estado `READY`, `IN_PROGRESS`, `BLOCKED` o `AWAITING_REVIEW`.
 
-Cuando la corrección pueda validarse en navegador real, inspeccionar el código, el informe y la ejecución antes de aceptar la fundación del cliente.
+Inspeccionar el código real, el informe, las pruebas y la navegación antes de aceptar o emitir una corrección.
 
 ## Instrucción para el implementador
 
-1. Leer `docs/contracts/002-browser-css-loading.md` completo y toda su documentación obligatoria.
-2. Usar exclusivamente `feature/002-browser-css-loading`, basada en `feature/001-client-foundation`.
-3. Completar la validación en navegador real en un entorno que permita navegar a `http://localhost:5173/`.
-4. Si la validación pasa, actualizar el informe y cambiar este estado a `AWAITING_REVIEW`.
-5. No marcar el contrato como `ACCEPTED`.
+1. La implementación de `docs/contracts/003-app-shell.md` está lista para revisión en `feature/003-app-shell`.
+2. No ampliar el alcance ni marcar el contrato como `ACCEPTED`.
+3. La revisión debe confirmar visualmente las cinco rutas, atrás/adelante, recarga, fallback, viewport de 320 px y consola sin errores.
