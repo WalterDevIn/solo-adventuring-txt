@@ -4,77 +4,116 @@
 
 Todo el trabajo activo se realiza directamente sobre `master`.
 
-No se crea una rama por contrato. Las ramas de prototipo se usan solo como referencia visual y funcional.
-
-Dos chats cumplen papeles separados:
+Se usan dos chats separados:
 
 ```text
 Planificador y revisor
-→ inspecciona el estado real
-→ acepta, corrige, rechaza o bloquea
-→ crea como máximo un contrato
+→ inspecciona el estado actual
+→ decide aceptar, corregir, rechazar o bloquear
+→ genera un contrato `.txt` descargable
+→ actualiza un único archivo de contexto
 
 Implementador
-→ lee el contrato vigente
+→ recibe el contrato `.txt` adjunto en el chat
+→ lee el contexto actual y la documentación de autoridad
 → implementa únicamente ese alcance
-→ informa el resultado
+→ actualiza el contexto actual con el resultado
 ```
 
-## Contrato vigente
+## Contratos portables
 
-`docs/ai/CURRENT_CONTRACT.md` es el único puntero autorizado.
+Los contratos nuevos no se guardan en el repositorio.
 
-Estados:
+El planificador debe crear un archivo descargable con nombre simple:
 
 ```text
-EMPTY
-READY
-IN_PROGRESS
-BLOCKED
-AWAITING_REVIEW
+004-design-foundation.txt
+004a-design-foundation-fix.txt
+```
+
+El usuario descarga ese archivo y lo adjunta al chat implementador.
+
+El archivo adjunto es la fuente primaria de alcance de esa implementación.
+
+Los contratos históricos que ya existen en `docs/ai/contracts/` permanecen solo como archivo. Ningún chat debe recorrerlos salvo que `CURRENT_CONTEXT.md` señale uno de forma explícita.
+
+## Contexto actual
+
+`docs/ai/CURRENT_CONTEXT.md` es el único documento operativo mutable.
+
+Debe ser corto y contener únicamente:
+
+```text
+estado actual
+último trabajo aceptado
+trabajo pendiente o en revisión
+defectos conocidos relevantes
+archivos o sectores afectados
+siguiente objetivo probable
+verificación mínima recomendada
+```
+
+No debe copiar contratos completos, informes extensos ni decisiones permanentes.
+
+El planificador lo actualiza después de revisar o emitir un contrato.
+
+El implementador lo actualiza al terminar o quedar bloqueado.
+
+## Documentación de autoridad
+
+La documentación estable permanece en el repositorio:
+
+```text
+docs/ARCHITECTURE.md
+docs/PRODUCT_DECISIONS.md
+docs/CHAT_UI_DECISIONS.md
+docs/COMBAT_COMPONENTS.md
+docs/ai/FRONTEND_STAGE_1_PLAN.md
+```
+
+No es obligatorio releer todos esos archivos completos en cada intervención.
+
+Regla:
+
+```text
+leer CURRENT_CONTEXT.md
+→ leer el contrato adjunto
+→ leer solo las secciones de autoridad citadas por el contrato
+→ inspeccionar solo los archivos afectados
+```
+
+## Revisión y correcciones
+
+El planificador clasifica el resultado como:
+
+```text
 ACCEPTED
 CORRECTION_REQUIRED
 REJECTED
-CANCELLED
+BLOCKED
 ```
 
-El planificador no prepara un contrato normal nuevo mientras exista una corrección pendiente.
-
-## Correcciones
-
-Los contratos históricos son inmutables. Una implementación defectuosa se corrige con un contrato nuevo relacionado:
+Si requiere corrección, genera un nuevo `.txt` relacionado:
 
 ```text
-003-app-shell.md
-003a-app-shell-fix.md
-003b-app-shell-responsive-fix.md
+004-design-foundation.txt
+004a-design-foundation-fix.txt
+004b-design-foundation-layout-fix.txt
 ```
 
-Un contrato de corrección debe describir el defecto observado, el comportamiento actual, el resultado esperado y el alcance mínimo de reparación.
+No modifica retroactivamente el contrato anterior.
 
 ## Commits
 
 No se exige un único commit por contrato.
 
-El implementador puede crear varios commits cuando eso mejore el desarrollo, la recuperación o la revisión. Deben ser coherentes y pertenecer exclusivamente al contrato vigente.
+El implementador puede crear varios commits coherentes cuando eso facilite desarrollo, recuperación o revisión.
 
-Antes de entregar, `master` debe quedar ejecutable, sin cambios ajenos al contrato y con un informe final que enumere los commits relevantes.
-
-No se reescribe historial ni se fuerza `master` como parte del flujo ordinario.
-
-## Velocidad de inspección
-
-El planificador y el implementador deben leer primero los documentos mínimos y después únicamente los archivos afectados.
-
-No deben recorrer todo el repositorio cuando el contrato ya delimita archivos y responsabilidades.
-
-No deben releer ramas de referencia completas en cada iteración. Solo se consultan cuando el contrato exige una comparación visual o funcional concreta.
-
-El informe anterior es una guía; la revisión del código debe concentrarse en el diff y en los criterios de aceptación.
+Todos los commits deben pertenecer al contrato adjunto y `master` debe quedar ejecutable al entregar.
 
 ## Verificación proporcional
 
-Cada contrato declara un nivel:
+Cada contrato debe declarar un nivel:
 
 ```text
 Nivel 0 — inspección documental o estructural
@@ -89,54 +128,50 @@ Solo se usa cuando el criterio depende realmente del navegador: layout, CSS, scr
 
 Reglas de rapidez:
 
-- no insistir con Chromium después de un timeout o bloqueo del entorno;
-- registrar la limitación y continuar con las pruebas posibles;
+- no insistir con Chromium después de un timeout o bloqueo;
 - no probar toda la aplicación para un cambio local;
 - no repetir pruebas equivalentes;
-- no reconstruir manualmente el proyecto si puede ejecutarse desde el repositorio;
-- usar `npm test` solo cuando el contrato o el cambio lo justifiquen;
-- preferir una prueba corta y determinista sobre una exploración extensa.
-
-Para Nivel 2, la prueba visual debe limitarse a una pantalla, una interacción principal y los viewports expresamente indicados.
-
-Nivel 3 se reserva para contratos de integración, responsive, scroll, overlays, typewriter o regresión visual.
+- no ejecutar `npm test` si el contrato no lo requiere y el cambio no afecta lógica cubierta;
+- preferir una prueba corta y determinista;
+- registrar límites del entorno y continuar.
 
 ## Papel del planificador
 
 El planificador:
 
-1. lee `CURRENT_CONTRACT.md`;
-2. inspecciona contrato, informe y diff;
-3. clasifica el resultado como `ACCEPTED`, `CORRECTION_REQUIRED`, `REJECTED` o `BLOCKED`;
-4. crea como máximo un contrato;
-5. actualiza `CURRENT_CONTRACT.md`;
-6. no implementa código de producto.
-
-No confía ciegamente en el informe, pero tampoco repite todas las pruebas del implementador sin una razón concreta.
+1. lee `docs/ai/CURRENT_CONTEXT.md`;
+2. inspecciona solo el diff y los archivos directamente relevantes;
+3. clasifica el resultado anterior;
+4. genera como máximo un contrato `.txt` descargable;
+5. actualiza `CURRENT_CONTEXT.md`;
+6. no guarda el contrato nuevo en el repositorio;
+7. no implementa código de producto.
 
 ## Papel del implementador
 
 El implementador:
 
 1. trabaja sobre `master` actualizado;
-2. lee el contrato vigente y los documentos obligatorios;
-3. inspecciona solo los archivos relevantes;
-4. implementa el alcance cerrado;
-5. ejecuta la verificación indicada;
-6. revisa el diff;
-7. crea o actualiza el informe;
-8. deja `CURRENT_CONTRACT.md` en `AWAITING_REVIEW` o `BLOCKED`.
+2. toma el archivo `.txt` adjunto como contrato;
+3. lee `CURRENT_CONTEXT.md`;
+4. consulta solo la documentación citada por el contrato;
+5. inspecciona únicamente los archivos relevantes;
+6. implementa el alcance cerrado;
+7. ejecuta la verificación indicada;
+8. revisa el diff;
+9. actualiza `CURRENT_CONTEXT.md` con el resultado;
+10. no crea contratos ni informes históricos en el repositorio.
 
-No diseña producto, no adelanta backend ni simulación y no prepara el siguiente contrato.
+## Objetivo
 
-## Documentos de autoridad
+El repositorio conserva dirección y estado, pero no acumula trabajo administrativo por cada iteración.
 
-Antes de planificar o implementar se respetan:
+La continuidad queda distribuida así:
 
 ```text
-docs/ARCHITECTURE.md
-docs/PRODUCT_DECISIONS.md
-docs/CHAT_UI_DECISIONS.md
-docs/COMBAT_COMPONENTS.md
-docs/ai/FRONTEND_STAGE_1_PLAN.md
+decisiones permanentes → docs/
+plan general → docs/ai/FRONTEND_STAGE_1_PLAN.md
+estado operativo → docs/ai/CURRENT_CONTEXT.md
+alcance puntual → archivo `.txt` adjunto al chat implementador
+código y commits → master
 ```
