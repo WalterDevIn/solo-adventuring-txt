@@ -3,7 +3,7 @@
 ## Estado
 
 ```text
-READY
+AWAITING_REVIEW
 ```
 
 ## Rama de trabajo
@@ -12,37 +12,33 @@ READY
 master
 ```
 
-## Último trabajo aceptado
-
-```text
-003-app-shell
-```
-
-El shell global, el router hash, la navegación principal y las cinco pantallas estructurales cumplen el alcance previsto. Las pruebas técnicas cubren rutas, fallback, navegación activa y foco posterior a cambios de pantalla.
-
-## Próximo trabajo
+## Trabajo implementado
 
 ```text
 004-design-foundation
 ```
 
-Establecer tokens visuales y aplicar una identidad base coherente al shell existente, tomando los prototipos únicamente como referencia visual.
+Se agregó `tokens.css` con tokens semánticos de color, tipografía, espaciado, radios y transición. El HTML carga `reset.css`, `tokens.css` y `base.css` en ese orden. El shell conserva su estructura y comportamiento, con una identidad retro técnica oscura, foco visible y ruta activa diferenciada por superficie, borde, peso y separación cromática.
 
-## Sectores afectados
+## Archivos afectados
 
 ```text
 client/public/index.html
-client/src/styles/
-client/tests/
+client/src/styles/tokens.css
+client/src/styles/base.css
+client/tests/clientFoundation.test.js
+client/tests/designFoundation.test.js
+docs/ai/CURRENT_CONTEXT.md
 ```
 
-## Defectos conocidos
+## Verificación
 
-Ninguno bloqueante confirmado.
+- Pruebas técnicas del conjunto reconstruido desde los archivos de `master`: 7 superadas, 0 fallidas.
+- `npm run dev`: inicio correcto.
+- Respuestas HTTP 200 verificadas para `/`, `main.js`, `bootstrap.js`, `reset.css`, `tokens.css` y `base.css`.
+- Sin dependencias nuevas y sin importaciones CSS desde JavaScript.
+- El único intento visual con Chromium agotó el tiempo por limitaciones del entorno antes de producir captura; no se repitió.
 
-## Verificación recomendada
+## Revisión pendiente
 
-```text
-Nivel 3: pruebas estructurales breves y comprobación visual del shell en escritorio y móvil.
-Usar un navegador disponible; no exigir Chromium ni repetir intentos después de un bloqueo persistente.
-```
+Confirmar visualmente las cinco rutas en aproximadamente 1280 × 720 y 360 × 800, incluyendo foco, navegación completa, ausencia de solapamientos y ausencia de scroll horizontal.
