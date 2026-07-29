@@ -3,7 +3,7 @@
 ## Estado
 
 ```text
-AWAITING_REVIEW
+READY
 ```
 
 ## Rama de trabajo
@@ -12,43 +12,37 @@ AWAITING_REVIEW
 master
 ```
 
-## Último trabajo implementado
+## Último trabajo aceptado
 
 ```text
 003-app-shell
 ```
 
-La aplicación dispone de shell global, router hash, navegación principal y cinco pantallas estructurales vacías.
+El shell global, el router hash, la navegación principal y las cinco pantallas estructurales cumplen el alcance previsto. Las pruebas técnicas cubren rutas, fallback, navegación activa y foco posterior a cambios de pantalla.
 
-## Estado de revisión
-
-La implementación está pendiente de revisión breve. Las pruebas técnicas del router y del shell pasaron. La validación mediante Chromium no fue concluyente por bloqueo del entorno y no debe repetirse indefinidamente.
-
-## Archivos principales afectados
+## Próximo trabajo
 
 ```text
-client/src/app/
-client/src/screens/
-client/src/styles/base.css
-client/tests/appShell.test.js
+004-design-foundation
+```
+
+Establecer tokens visuales y aplicar una identidad base coherente al shell existente, tomando los prototipos únicamente como referencia visual.
+
+## Sectores afectados
+
+```text
+client/public/index.html
+client/src/styles/
+client/tests/
 ```
 
 ## Defectos conocidos
 
-No hay un defecto funcional confirmado. Queda pendiente una inspección visual humana breve para aceptar o emitir una corrección concreta.
-
-## Siguiente objetivo probable
-
-```text
-design-foundation
-```
-
-Solo debe prepararse después de aceptar `003-app-shell`.
+Ninguno bloqueante confirmado.
 
 ## Verificación recomendada
 
 ```text
-Nivel 1 para revisión estructural.
-Nivel 2 breve solo si se necesita confirmar layout o navegación visible.
-No insistir con Chromium si el entorno vuelve a bloquearlo.
+Nivel 3: pruebas estructurales breves y comprobación visual del shell en escritorio y móvil.
+Usar un navegador disponible; no exigir Chromium ni repetir intentos después de un bloqueo persistente.
 ```
