@@ -16,42 +16,96 @@ body {
 
 #app {
   min-height: 100vh;
-  display: grid;
-  place-items: center;
-  padding: 2rem;
 }
 
-.foundation {
-  width: min(100%, 38rem);
+.app-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 1rem clamp(1rem, 4vw, 3rem);
+  border-bottom: 1px solid rgba(236, 238, 243, 0.1);
+  background: rgba(17, 19, 24, 0.86);
+}
+
+.app-identity,
+.app-navigation a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.app-identity {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.25rem;
+  white-space: nowrap;
+}
+
+.app-navigation {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.app-navigation a {
+  padding: 0.55rem 0.75rem;
+  border-radius: 0.5rem;
+  color: #c7c3ce;
+  font-size: 0.9rem;
+}
+
+.app-navigation a:hover,
+.app-navigation a:focus-visible,
+.app-navigation a[aria-current="page"] {
+  background: rgba(170, 162, 188, 0.14);
+  color: #ffffff;
+}
+
+.app-content {
+  display: grid;
+  place-items: center;
+  padding: clamp(2rem, 8vw, 6rem) clamp(1rem, 5vw, 4rem);
+  outline: none;
+}
+
+.app-content:focus-visible {
+  box-shadow: inset 0 0 0 2px rgba(170, 162, 188, 0.5);
+}
+
+.empty-screen {
+  width: min(100%, 42rem);
   text-align: center;
 }
 
-.foundation__eyebrow {
-  margin: 0 0 0.75rem;
-  color: #aaa2bc;
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
-.foundation h1 {
+.empty-screen h1 {
   margin: 0;
   font-family: Georgia, "Times New Roman", serif;
-  font-size: clamp(2.5rem, 10vw, 5rem);
+  font-size: clamp(2.5rem, 9vw, 5rem);
   font-weight: 500;
   line-height: 0.95;
 }
 
-.foundation__status {
-  margin: 1.25rem 0 0;
+.empty-screen p {
+  margin: 1.25rem auto 0;
+  max-width: 36rem;
   color: #c7c3ce;
   font-size: clamp(1rem, 3vw, 1.125rem);
   line-height: 1.6;
 }
 
-@media (max-width: 30rem) {
-  #app {
-    padding: 1.5rem;
+@media (max-width: 42rem) {
+  .app-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .app-navigation {
+    justify-content: flex-start;
   }
 }
