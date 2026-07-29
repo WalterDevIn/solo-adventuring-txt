@@ -83,3 +83,7 @@ El comando de desarrollo está contenido en una expresión inline de `package.js
 ## Commit o referencia final
 
 Este informe forma parte del commit de implementación en `feature/001-client-foundation` con mensaje `Implement client foundation`.
+
+## Nota de revisión posterior
+
+La implementación no fue aceptada al comprobarse en navegador real. `main.js` importaba archivos `.css` como módulos JavaScript sin bundler; el navegador los rechazó por MIME estricto y no ejecutó el bootstrap. El contrato `002-browser-css-loading` fue creado para corregir exclusivamente ese defecto.
