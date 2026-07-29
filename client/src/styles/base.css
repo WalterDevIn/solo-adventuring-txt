@@ -1,8 +1,7 @@
 :root {
-  color-scheme: dark;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background: #111318;
-  color: #eceef3;
+  font-family: var(--font-family-primary);
+  background: var(--color-background);
+  color: var(--color-text-primary);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }
@@ -10,8 +9,12 @@
 body {
   min-height: 100vh;
   background:
-    radial-gradient(circle at top, rgba(95, 75, 126, 0.18), transparent 42rem),
-    #111318;
+    linear-gradient(rgba(46, 199, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 49, 92, 0.02) 1px, transparent 1px),
+    radial-gradient(circle at top, var(--color-glow), transparent 38rem),
+    var(--color-background);
+  background-size: 2.5rem 2.5rem, 2.5rem 2.5rem, auto, auto;
+  color: var(--color-text-primary);
 }
 
 #app {
@@ -28,10 +31,11 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1.5rem;
-  padding: 1rem clamp(1rem, 4vw, 3rem);
-  border-bottom: 1px solid rgba(236, 238, 243, 0.1);
-  background: rgba(17, 19, 24, 0.86);
+  gap: var(--space-5);
+  padding: var(--space-4) clamp(var(--space-4), 4vw, var(--space-7));
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: color-mix(in srgb, var(--color-surface) 92%, transparent);
+  box-shadow: 0 1px 0 rgba(46, 199, 255, 0.08);
 }
 
 .app-identity,
@@ -41,8 +45,18 @@ body {
 }
 
 .app-identity {
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 1.25rem;
+  position: relative;
+  flex: 0 0 auto;
+  color: var(--color-text-primary);
+  font-size: clamp(1rem, 2vw, 1.25rem);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  text-shadow:
+    -1px 0 var(--color-fringe-red),
+    1px 0 var(--color-fringe-blue),
+    0 0 0.75rem var(--color-glow);
   white-space: nowrap;
 }
 
@@ -50,62 +64,130 @@ body {
   display: flex;
   justify-content: flex-end;
   flex-wrap: wrap;
-  gap: 0.35rem;
+  gap: var(--space-2);
+  min-width: 0;
 }
 
 .app-navigation a {
-  padding: 0.55rem 0.75rem;
-  border-radius: 0.5rem;
-  color: #c7c3ce;
-  font-size: 0.9rem;
+  position: relative;
+  padding: 0.6rem var(--space-3);
+  border: 1px solid transparent;
+  border-radius: var(--radius-small);
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.25;
+  transition:
+    background-color var(--transition-duration) ease,
+    border-color var(--transition-duration) ease,
+    color var(--transition-duration) ease,
+    box-shadow var(--transition-duration) ease;
 }
 
-.app-navigation a:hover,
-.app-navigation a:focus-visible,
+.app-navigation a:hover {
+  border-color: var(--color-border-subtle);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+}
+
 .app-navigation a[aria-current="page"] {
-  background: rgba(170, 162, 188, 0.14);
-  color: #ffffff;
+  border-color: var(--color-border-primary);
+  background: var(--color-surface-active);
+  color: var(--color-text-primary);
+  box-shadow:
+    -2px 0 0 var(--color-fringe-red),
+    2px 0 0 var(--color-fringe-blue),
+    0 0 1rem var(--color-glow);
+  font-weight: 700;
+}
+
+.app-navigation a:focus-visible,
+.app-identity:focus-visible {
+  outline: 2px solid var(--color-fringe-blue);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 1px var(--color-background), 0 0 1rem var(--color-glow);
 }
 
 .app-content {
   display: grid;
   place-items: center;
-  padding: clamp(2rem, 8vw, 6rem) clamp(1rem, 5vw, 4rem);
+  min-width: 0;
+  padding: clamp(var(--space-6), 8vw, 6rem) clamp(var(--space-4), 5vw, var(--space-8));
   outline: none;
 }
 
 .app-content:focus-visible {
-  box-shadow: inset 0 0 0 2px rgba(170, 162, 188, 0.5);
+  box-shadow: inset 0 0 0 2px var(--color-fringe-blue);
 }
 
 .empty-screen {
   width: min(100%, 42rem);
+  padding: clamp(var(--space-5), 5vw, var(--space-7));
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-medium);
+  background: color-mix(in srgb, var(--color-surface) 82%, transparent);
+  box-shadow:
+    -1px 0 0 rgba(255, 49, 92, 0.24),
+    1px 0 0 rgba(46, 199, 255, 0.24),
+    0 1rem 3rem rgba(0, 0, 0, 0.28);
   text-align: center;
 }
 
 .empty-screen h1 {
   margin: 0;
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: clamp(2.5rem, 9vw, 5rem);
-  font-weight: 500;
-  line-height: 0.95;
+  color: var(--color-text-primary);
+  font-size: clamp(2rem, 8vw, 4.5rem);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  text-shadow:
+    -1px 0 rgba(255, 49, 92, 0.65),
+    1px 0 rgba(46, 199, 255, 0.65),
+    0 0 1.25rem var(--color-glow);
 }
 
 .empty-screen p {
-  margin: 1.25rem auto 0;
+  margin: var(--space-5) auto 0;
   max-width: 36rem;
-  color: #c7c3ce;
-  font-size: clamp(1rem, 3vw, 1.125rem);
-  line-height: 1.6;
+  color: var(--color-text-secondary);
+  font-size: clamp(0.95rem, 3vw, 1.1rem);
+  line-height: 1.7;
 }
 
 @media (max-width: 42rem) {
   .app-header {
-    align-items: flex-start;
+    align-items: stretch;
     flex-direction: column;
+    gap: var(--space-4);
+    padding: var(--space-4);
+  }
+
+  .app-identity {
+    white-space: normal;
   }
 
   .app-navigation {
     justify-content: flex-start;
+    gap: var(--space-1);
+  }
+
+  .app-navigation a {
+    flex: 1 1 auto;
+    min-width: max-content;
+    padding-inline: var(--space-2);
+    text-align: center;
+  }
+
+  .app-content {
+    padding: var(--space-5) var(--space-4);
+  }
+
+  .empty-screen {
+    padding: var(--space-6) var(--space-4);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-navigation a {
+    transition: none;
   }
 }
