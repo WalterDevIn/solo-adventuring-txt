@@ -7,13 +7,16 @@ const readProjectFile = (path) => readFile(new URL(`../../${path}`, import.meta.
 test('el HTML define el montaje, los estilos y el punto de entrada modular', async () => {
   const html = await readProjectFile('client/public/index.html');
   const resetIndex = html.indexOf('href="../src/styles/reset.css"');
+  const tokensIndex = html.indexOf('href="../src/styles/tokens.css"');
   const baseIndex = html.indexOf('href="../src/styles/base.css"');
 
   assert.match(html, /<div id="app"><\/div>/);
   assert.match(html, /<script type="module" src="\.\.\/src\/main\.js"><\/script>/);
   assert.ok(resetIndex >= 0, 'reset.css debe enlazarse desde el HTML');
+  assert.ok(tokensIndex >= 0, 'tokens.css debe enlazarse desde el HTML');
   assert.ok(baseIndex >= 0, 'base.css debe enlazarse desde el HTML');
-  assert.ok(resetIndex < baseIndex, 'reset.css debe cargarse antes que base.css');
+  assert.ok(resetIndex < tokensIndex, 'reset.css debe cargarse antes que tokens.css');
+  assert.ok(tokensIndex < baseIndex, 'tokens.css debe cargarse antes que base.css');
 });
 
 test('main delega el montaje al bootstrap sin importar CSS', async () => {
